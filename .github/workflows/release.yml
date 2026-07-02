@@ -34,6 +34,6 @@ jobs:
       - name: publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/libs/wavemotes-*.jar
+          files: build/libs/shapeboard-*.jar
           generate_release_notes: true
           fail_on_unmatched_files: true
