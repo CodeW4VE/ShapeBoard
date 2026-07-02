@@ -12,6 +12,7 @@
 		"sources": "https://github.com/CodeW4VE/ShapeBoard"
 	},
 	"license": "MIT",
+	"icon": "assets/shapeboard/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
