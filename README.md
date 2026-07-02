@@ -4,6 +4,12 @@
 
 100% server-side. Players do not install anything.
 
+## See it in action
+
+![Flying out of the area removes the sidebar, flying back in restores it, live scores included](docs/demo.gif)
+
+Full quality video with sound: [shapeboard-demo.mp4](https://github.com/CodeW4VE/ShapeBoard/releases/download/v1.0.1/shapeboard-demo.mp4)
+
 ## Why
 
 Tools like buildevents can only track rectangular boxes. Real projects are not rectangles: perimeters have round corners, rivers you want to skip, weird bulges. If you track a box around a round perimeter, people mining outside the actual project still climb your leaderboard. ShapeBoard follows the exact outline you drew, so the count is fair.
