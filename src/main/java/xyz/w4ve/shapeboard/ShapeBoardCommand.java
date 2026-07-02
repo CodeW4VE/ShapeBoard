@@ -25,6 +25,7 @@ import net.minecraft.world.scores.Scoreboard;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class ShapeBoardCommand {
 	private static final SuggestionProvider<CommandSourceStack> SHAPE_IDS = (ctx, builder) ->
@@ -32,6 +33,9 @@ public final class ShapeBoardCommand {
 					ShapeBoard.INSTANCE.store.all().stream().map(s -> s.id), builder);
 	private static final SuggestionProvider<CommandSourceStack> BLOCKS = (ctx, builder) ->
 			SharedSuggestionProvider.suggestResource(BuiltInRegistries.BLOCK.keySet(), builder);
+	private static final List<String> METRIC_VALUES = List.of("break", "place", "both");
+	private static final SuggestionProvider<CommandSourceStack> METRICS = (ctx, builder) ->
+			SharedSuggestionProvider.suggest(METRIC_VALUES, builder);
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(Commands.literal("shapeboard")
@@ -49,6 +53,10 @@ public final class ShapeBoardCommand {
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.then(Commands.argument("name", StringArgumentType.greedyString())
 										.executes(ShapeBoardCommand::rename))))
+				.then(Commands.literal("metric").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.then(Commands.argument("value", StringArgumentType.word()).suggests(METRICS)
+										.executes(ShapeBoardCommand::metric))))
 				.then(Commands.literal("delete").requires(s -> s.hasPermission(2))
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.executes(ShapeBoardCommand::delete)))
@@ -145,6 +153,27 @@ public final class ShapeBoardCommand {
 		return 1;
 	}
 
+	private static int metric(CommandContext<CommandSourceStack> ctx) {
+		Shape shape = ShapeBoard.INSTANCE.store.byId(StringArgumentType.getString(ctx, "id"));
+		if (shape == null) return unknownShape(ctx);
+		String value = StringArgumentType.getString(ctx, "value").toLowerCase();
+		if (!METRIC_VALUES.contains(value)) {
+			ctx.getSource().sendFailure(Component.literal("Metric must be one of: break, place, both"));
+			return 0;
+		}
+		shape.metric = value;
+		ShapeBoard.INSTANCE.store.save(ctx.getSource().getServer());
+		String what = switch (value) {
+			case "place" -> "blocks placed";
+			case "both" -> "blocks broken + placed";
+			default -> "blocks broken";
+		};
+		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
+				.append(Component.literal("'" + shape.id + "' now ranks by " + what
+						+ ". Sidebar and /shapeboard top follow it.").withStyle(ChatFormatting.GREEN)), true);
+		return 1;
+	}
+
 	private static int delete(CommandContext<CommandSourceStack> ctx) {
 		String id = StringArgumentType.getString(ctx, "id");
 		if (!ShapeBoard.INSTANCE.store.remove(id)) return unknownShape(ctx);
@@ -192,8 +221,9 @@ public final class ShapeBoardCommand {
 		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
 				.append(Component.literal(s.id + " \"" + s.displayName + "\": " + String.format("%,d", s.area())
 						+ " columns inside, bounds x[" + s.xMin + ".." + s.xMax + "] z[" + s.zMin + ".." + s.zMax
-						+ "], counts below y" + s.yLines + " in " + s.dimension + ". Objectives: "
-						+ s.breakObjective() + " / " + s.placeObjective()).withStyle(ChatFormatting.WHITE)), false);
+						+ "], counts below y" + s.yLines + " in " + s.dimension + ", ranks by " + s.metric
+						+ ". Objectives: " + s.breakObjective() + " / " + s.placeObjective())
+						.withStyle(ChatFormatting.WHITE)), false);
 		return 1;
 	}
 
@@ -214,44 +244,44 @@ public final class ShapeBoardCommand {
 		}
 
 		Scoreboard sb = source.getServer().getScoreboard();
-		Objective br = sb.getObjective(shape.breakObjective());
-		Objective pl = sb.getObjective(shape.placeObjective());
-		List<PlayerScoreEntry> entries = br == null ? List.of() : new ArrayList<>(sb.listPlayerScores(br));
-		entries.removeIf(e -> e.owner().startsWith("#"));
-		entries.sort((a, b) -> Integer.compare(b.value(), a.value()));
+		// ranked by the shape's metric (break, place or both)
+		List<Map.Entry<String, Integer>> entries = new ArrayList<>(SidebarManager.metricTotals(sb, shape).entrySet());
+		entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
 
 		final Shape fs = shape;
 		source.sendSuccess(() -> Component.literal("— " + fs.displayName + " —")
 				.withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
 		if (entries.isEmpty()) {
-			source.sendSuccess(() -> Component.literal("Nobody has dug here yet.")
+			source.sendSuccess(() -> Component.literal("Nothing counted here yet.")
 					.withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC), false);
 		}
-		long total = 0;
-		for (int i = 0; i < entries.size(); i++) {
-			PlayerScoreEntry e = entries.get(i);
-			total += e.value();
-			if (i < 10) {
-				final int rank = i + 1;
-				source.sendSuccess(() -> Component.literal(" #" + rank + " ").withStyle(ChatFormatting.YELLOW)
-						.append(Component.literal(e.owner() + "  ").withStyle(ChatFormatting.WHITE))
-						.append(Component.literal(String.format("%,d", e.value())).withStyle(ChatFormatting.GREEN)),
-						false);
-			}
+		for (int i = 0; i < Math.min(10, entries.size()); i++) {
+			Map.Entry<String, Integer> e = entries.get(i);
+			final int rank = i + 1;
+			source.sendSuccess(() -> Component.literal(" #" + rank + " ").withStyle(ChatFormatting.YELLOW)
+					.append(Component.literal(e.getKey() + "  ").withStyle(ChatFormatting.WHITE))
+					.append(Component.literal(String.format("%,d", e.getValue())).withStyle(ChatFormatting.GREEN)),
+					false);
 		}
-		long placed = 0;
-		if (pl != null) {
-			for (PlayerScoreEntry e : sb.listPlayerScores(pl)) {
-				if (!e.owner().startsWith("#")) placed += e.value();
-			}
-		}
-		final long ftotal = total, fplaced = placed;
-		final int diggers = entries.size();
+		// keep this exact wording: external tools (our Discord bot) parse it
+		final long dug = objectiveSum(sb, shape.breakObjective());
+		final long placed = objectiveSum(sb, shape.placeObjective());
+		final int players = entries.size();
 		source.sendSuccess(() -> Component.literal("Total: ").withStyle(ChatFormatting.GRAY)
-				.append(Component.literal(String.format("%,d", ftotal)).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD))
-				.append(Component.literal(" blocks dug by " + diggers + " players, "
-						+ String.format("%,d", fplaced) + " placed").withStyle(ChatFormatting.GRAY)), false);
+				.append(Component.literal(String.format("%,d", dug)).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD))
+				.append(Component.literal(" blocks dug by " + players + " players, "
+						+ String.format("%,d", placed) + " placed").withStyle(ChatFormatting.GRAY)), false);
 		return 1;
+	}
+
+	private static long objectiveSum(Scoreboard sb, String objectiveName) {
+		Objective obj = sb.getObjective(objectiveName);
+		if (obj == null) return 0;
+		long total = 0;
+		for (PlayerScoreEntry e : sb.listPlayerScores(obj)) {
+			if (!e.owner().startsWith("#")) total += e.value();
+		}
+		return total;
 	}
 
 	private static int setHidden(CommandContext<CommandSourceStack> ctx, boolean hidden) {

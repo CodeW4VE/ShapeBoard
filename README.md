@@ -1,5 +1,7 @@
 # ShapeBoard
 
+*Read this in [Español](README_es.md).*
+
 **Scoreboards for areas of ANY shape, not just boxes.** Outline your dig zone, perimeter or build area with a line of marker blocks in the sky, run one command, and ShapeBoard tracks every block broken and placed inside that exact shape. When someone walks in, a leaderboard sidebar appears just for them. When they walk out, it goes away.
 
 100% server-side. Players do not install anything.
@@ -62,6 +64,7 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 |---|---|---|
 | `/shapeboard create <id> <block> <y> [x z]` | OP | Scan the marker line and create a shape. `x z` optional start point (required from console) |
 | `/shapeboard rename <id> <name...>` | OP | Set the display name shown on the sidebar |
+| `/shapeboard metric <id> <break\|place\|both>` | OP | What the leaderboard ranks by: blocks broken (default), placed, or the sum. Perfect for build/decoration zones |
 | `/shapeboard delete <id>` | OP | Delete the shape (scoreboard objectives are kept) |
 | `/shapeboard list` | all | List shapes with area and marker info |
 | `/shapeboard info <id>` | all | Details of one shape |
@@ -87,6 +90,8 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 **Multiple shapes?** Yes, create as many as you want. A player standing inside one sees that shape's board.
 
 **What if my outline has a hole in it?** The scan fails and prints the coordinates of the open line ends. Patch them (or leave up to 6 blocks, which bridge automatically) and rerun create.
+
+**Can I track a build or decoration area that has no outline?** Yes: the marker line is only needed during the scan. Draw a temporary outline with any cheap block at a Y above the build, run create, then remove the blocks: the shape keeps working forever (the mask is stored in `world/shapeboard/`). Then set `/shapeboard metric <id> place` so the leaderboard ranks by blocks placed instead of dug (or `both` for the sum).
 
 **Can I track an area that already had digging?** Objectives start at zero when the shape is created. If you have previous numbers in another objective, copy them in with `/scoreboard players operation`.
 

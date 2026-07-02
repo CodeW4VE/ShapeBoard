@@ -32,10 +32,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * ShapeBoard: trackea bloques rotos/colocados dentro de zonas con forma
- * ARBITRARIA (dibujada con líneas de bloques marcadores en el cielo) y
- * muestra un leaderboard en el sidebar, por jugador, al entrar a la zona.
- * 100% server-side: los jugadores no instalan nada.
+ * ShapeBoard: tracks blocks broken/placed inside ARBITRARILY shaped zones
+ * (drawn with marker block lines in the sky) and shows a per-player
+ * leaderboard sidebar when entering the zone.
+ * 100% server-side: players install nothing.
  */
 public class ShapeBoard implements ModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger("shapeboard");
@@ -72,14 +72,17 @@ public class ShapeBoard implements ModInitializer {
 		LOGGER.info("ShapeBoard ready");
 	}
 
-	/** Punto común de conteo (break desde el evento, place desde el mixin). */
+	/** Common counting entry point (break from the event, place from the mixin). */
 	public void count(Level world, BlockPos pos, Player player, boolean isBreak) {
 		if (server == null || world.isClientSide()) return;
 		Shape shape = store.shapeAt(world.dimension().location().toString(), pos.getX(), pos.getZ());
 		if (shape == null || pos.getY() >= shape.yLines) return;
 		Objective obj = getOrCreateObjective(shape, isBreak);
 		server.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(player.getScoreboardName()), obj).add(1);
-		if (isBreak) sidebar.onScoreChange(server, store, shape.id);
+		// push instantly to viewers, but only if this kind feeds the shape's metric
+		if (isBreak ? shape.countsBreaks() : shape.countsPlaces()) {
+			sidebar.onScoreChange(server, store, shape.id);
+		}
 	}
 
 	public Objective getOrCreateObjective(Shape shape, boolean isBreak) {
@@ -142,13 +145,13 @@ public class ShapeBoard implements ModInitializer {
 		}
 	}
 
-	/** Shape en la que está parado ahora mismo el jugador (o null). */
+	/** Shape the player is standing in right now (or null). */
 	public Shape currentShape(ServerPlayer player) {
 		return store.shapeAt(player.level().dimension().location().toString(),
 				Mth.floor(player.getX()), Mth.floor(player.getZ()));
 	}
 
-	/** El sidebar/los mensajes no aplican a fake players (bots de carpet). */
+	/** Sidebar/messages do not apply to fake players (carpet bots). */
 	public static boolean isFakePlayer(ServerPlayer player) {
 		return player.getClass() != ServerPlayer.class;
 	}

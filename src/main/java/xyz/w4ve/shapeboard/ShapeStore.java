@@ -22,7 +22,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Shapes + preferencias, persistidos en world/shapeboard/ como JSON. */
+/** Shapes + preferences, persisted as JSON under world/shapeboard/. */
 public final class ShapeStore {
 	private static final Gson GSON = new GsonBuilder().create();
 
@@ -40,7 +40,7 @@ public final class ShapeStore {
 		return null;
 	}
 
-	/** Primera shape que contiene la columna (x,z) en esa dimensión. */
+	/** First shape containing the (x,z) column in that dimension. */
 	public Shape shapeAt(String dimension, int x, int z) {
 		for (Shape s : shapes) {
 			if (s.dimension.equals(dimension) && s.contains(x, z)) return s;
@@ -119,6 +119,7 @@ public final class ShapeStore {
 		JsonObject o = new JsonObject();
 		o.addProperty("id", s.id);
 		o.addProperty("name", s.displayName);
+		o.addProperty("metric", s.metric);
 		o.addProperty("marker", s.marker);
 		o.addProperty("y", s.yLines);
 		o.addProperty("dim", s.dimension);
@@ -148,7 +149,7 @@ public final class ShapeStore {
 			}
 			cols.put(Integer.parseInt(e.getKey()), iv);
 		}
-		return new Shape(
+		Shape s = new Shape(
 				o.get("id").getAsString(),
 				o.get("name").getAsString(),
 				o.get("marker").getAsString(),
@@ -159,5 +160,7 @@ public final class ShapeStore {
 				o.get("zMin").getAsInt(),
 				o.get("zMax").getAsInt(),
 				cols);
+		if (o.has("metric")) s.metric = o.get("metric").getAsString();
+		return s;
 	}
 }

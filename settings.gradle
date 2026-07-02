@@ -10,8 +10,7 @@ pluginManagement {
 }
 
 plugins {
-	// Descarga el JDK que pida el toolchain si no hay uno instalado
-	// (la maquina solo tiene JRE 25, sin javac)
+	// Downloads the JDK the toolchain asks for if none is installed
 	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 

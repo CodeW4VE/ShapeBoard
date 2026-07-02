@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import xyz.w4ve.shapeboard.ShapeBoard;
 
 /**
- * Fabric API no trae evento de "bloque colocado" en server, así que se
- * intercepta BlockItem#place cuando la colocación fue exitosa.
+ * Fabric API has no server-side "block placed" event, so BlockItem#place
+ * is intercepted when the placement succeeded.
  */
 @Mixin(BlockItem.class)
 public abstract class BlockItemMixin {

@@ -3,19 +3,21 @@ package xyz.w4ve.shapeboard;
 import java.util.Map;
 
 /**
- * Una zona con forma arbitraria: la máscara 2D (columna x -> intervalos de z)
- * sale de escanear las líneas de bloques marcadores a una Y fija. Se cuenta
- * todo lo que pase DENTRO de la forma y por debajo de esa Y.
+ * An arbitrarily shaped zone: the 2D mask (x column -> z intervals) comes
+ * from scanning the marker block lines at a fixed Y. Everything that happens
+ * INSIDE the shape and below that Y is counted.
  */
 public final class Shape {
 	public final String id;
 	public String displayName;
-	public final String marker;    // id del bloque marcador, ej. "minecraft:black_concrete"
-	public final int yLines;       // Y de las líneas marcadoras
-	public final String dimension; // ej. "minecraft:overworld"
+	public final String marker;    // marker block id, e.g. "minecraft:black_concrete"
+	public final int yLines;       // Y level of the marker lines
+	public final String dimension; // e.g. "minecraft:overworld"
 	public final int xMin, xMax, zMin, zMax;
-	/** columna x -> pares planos [z1a,z1b, z2a,z2b, ...] (inclusivos) */
+	/** x column -> flat pairs [z1a,z1b, z2a,z2b, ...] (inclusive) */
 	public final Map<Integer, int[]> cols;
+	/** what the sidebar/top ranks by: "break" (digs), "place" or "both" (sum) */
+	public String metric = "break";
 
 	public Shape(String id, String displayName, String marker, int yLines, String dimension,
 			int xMin, int xMax, int zMin, int zMax, Map<Integer, int[]> cols) {
@@ -57,5 +59,13 @@ public final class Shape {
 
 	public String placeObjective() {
 		return id + "_place";
+	}
+
+	public boolean countsBreaks() {
+		return !metric.equals("place");
+	}
+
+	public boolean countsPlaces() {
+		return !metric.equals("break");
 	}
 }

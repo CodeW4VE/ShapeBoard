@@ -23,10 +23,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Sidebar por jugador de verdad, sin teams ni colores: se manda un objetivo
- * FALSO (solo existe en el cliente de ese jugador) con paquetes de scoreboard
- * dirigidos. Al ocultarlo se restaura el objetivo real del slot SIDEBAR.
- * Así dos jugadores con el mismo color de team no se filtran el board.
+ * A truly per-player sidebar, no teams or colors involved: a FAKE objective
+ * (existing only on that player's client) is sent through targeted scoreboard
+ * packets. Hiding it restores the real objective of the SIDEBAR slot. This
+ * way two players sharing a team color never leak the board to each other.
  */
 public final class SidebarManager {
 	private static final String FAKE_OBJ = "shapeboard_view";
@@ -55,22 +55,22 @@ public final class SidebarManager {
 		lastSent.remove(player.getUUID());
 		Objective fake = fakeObjective(null);
 		player.connection.send(new ClientboundSetObjectivePacket(fake, ClientboundSetObjectivePacket.METHOD_REMOVE));
-		// devolverle el sidebar global real que el mod tapó
+		// give back the real global sidebar the mod was covering
 		Objective real = player.server.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
 		player.connection.send(new ClientboundSetDisplayObjectivePacket(DisplaySlot.SIDEBAR, real));
 	}
 
-	/** Olvido sin paquetes (desconexión). */
+	/** Forget without sending packets (disconnect). */
 	public void forget(UUID uuid) {
 		viewing.remove(uuid);
 		lastSent.remove(uuid);
 	}
 
 	/**
-	 * Refresco inmediato al contarse un bloque: el sidebar vanilla se siente
-	 * instantáneo porque cada cambio de score viaja al momento; esto replica
-	 * eso para los que están mirando esa shape (refresh solo manda diffs, así
-	 * que cuesta un paquete por bloque y viewer).
+	 * Immediate refresh when a block is counted: the vanilla sidebar feels
+	 * instant because every score change travels right away; this replicates
+	 * that for whoever is watching that shape (refresh only sends diffs, so
+	 * it costs one packet per block per viewer).
 	 */
 	public void onScoreChange(MinecraftServer server, ShapeStore store, String shapeId) {
 		if (viewing.isEmpty()) return;
@@ -81,7 +81,7 @@ public final class SidebarManager {
 		}
 	}
 
-	/** Refresco periódico de respaldo: solo manda lo que cambió. */
+	/** Periodic fallback refresh: only sends what changed. */
 	public void tick(MinecraftServer server, ShapeStore store) {
 		if (viewing.isEmpty()) return;
 		for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
@@ -117,44 +117,55 @@ public final class SidebarManager {
 	}
 
 	/**
-	 * Top 15 del objetivo _break de la shape; si el que mira tiene score y no
-	 * entra en el top, se le hace hueco en la última línea para que se vea.
+	 * Top 15 for the shape's metric (breaks, places or the sum of both); if
+	 * the viewer has a score but is not in the top, the last slot is given to
+	 * them so they always see where they stand.
 	 */
 	private Map<String, Integer> buildLines(ServerPlayer player, Shape shape) {
-		Scoreboard sb = player.server.getScoreboard();
-		Objective obj = sb.getObjective(shape.breakObjective());
+		Map<String, Integer> totals = metricTotals(player.server.getScoreboard(), shape);
 		Map<String, Integer> lines = new LinkedHashMap<>();
-		if (obj == null) return lines;
+		if (totals.isEmpty()) return lines;
 
-		List<PlayerScoreEntry> entries = new ArrayList<>(sb.listPlayerScores(obj));
-		entries.removeIf(e -> e.owner().startsWith("#"));
-		entries.sort((a, b) -> Integer.compare(b.value(), a.value()));
+		List<Map.Entry<String, Integer>> entries = new ArrayList<>(totals.entrySet());
+		entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
 
 		String self = player.getScoreboardName();
 		boolean selfInTop = false;
 		int limit = Math.min(MAX_LINES, entries.size());
 		for (int i = 0; i < limit; i++) {
-			PlayerScoreEntry e = entries.get(i);
-			lines.put(e.owner(), e.value());
-			if (e.owner().equals(self)) selfInTop = true;
+			Map.Entry<String, Integer> e = entries.get(i);
+			lines.put(e.getKey(), e.getValue());
+			if (e.getKey().equals(self)) selfInTop = true;
 		}
-		if (!selfInTop) {
-			for (PlayerScoreEntry e : entries) {
-				if (e.owner().equals(self)) {
-					if (lines.size() >= MAX_LINES) {
-						String last = null;
-						for (String k : lines.keySet()) last = k;
-						lines.remove(last);
-					}
-					lines.put(self, e.value());
-					break;
-				}
+		if (!selfInTop && totals.containsKey(self)) {
+			if (lines.size() >= MAX_LINES) {
+				String last = null;
+				for (String k : lines.keySet()) last = k;
+				lines.remove(last);
 			}
+			lines.put(self, totals.get(self));
 		}
 		return lines;
 	}
 
-	/** Objetivo falso desechable, solo para serializar los paquetes. */
+	/** Per-player totals for whatever the shape's metric counts. */
+	public static Map<String, Integer> metricTotals(Scoreboard sb, Shape shape) {
+		Map<String, Integer> totals = new HashMap<>();
+		if (shape.countsBreaks()) accumulate(sb, shape.breakObjective(), totals);
+		if (shape.countsPlaces()) accumulate(sb, shape.placeObjective(), totals);
+		return totals;
+	}
+
+	private static void accumulate(Scoreboard sb, String objectiveName, Map<String, Integer> totals) {
+		Objective obj = sb.getObjective(objectiveName);
+		if (obj == null) return;
+		for (PlayerScoreEntry e : sb.listPlayerScores(obj)) {
+			if (e.owner().startsWith("#")) continue;
+			totals.merge(e.owner(), e.value(), Integer::sum);
+		}
+	}
+
+	/** Disposable fake objective, only used to serialize the packets. */
 	private static Objective fakeObjective(Shape shape) {
 		Component title = shape == null
 				? Component.empty()

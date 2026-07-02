@@ -15,19 +15,19 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Escanea el contorno de bloques marcadores a una Y fija: camina el componente
- * conectado (8 vecinos) desde una semilla, puentea huecos pequeños, y saca la
- * máscara interior con un flood fill 4-conexo desde afuera (un muro 8-conexo
- * bloquea un flood 4-conexo, así que las diagonales no filtran).
+ * Scans the marker block outline at a fixed Y: walks the connected component
+ * (8 neighbors) from a seed, bridges small gaps, and derives the interior
+ * mask with a 4-connected flood fill from the outside (an 8-connected wall
+ * blocks a 4-connected flood, so diagonal lines do not leak).
  */
 public final class ShapeScanner {
-	/** Radio de búsqueda de la semilla alrededor del punto dado. */
+	/** Seed search radius around the given start point. */
 	public static final int SEED_RADIUS = 64;
-	/** Tope de bloques de línea (protección de memoria/chunks). */
+	/** Cap on line blocks (memory/chunk-loading protection). */
 	public static final int MAX_WALL = 2_000_000;
-	/** Tope de celdas del grid del flood fill (~8k x 8k). */
+	/** Cap on flood fill grid cells (~8k x 8k). */
 	public static final long MAX_GRID = 64_000_000L;
-	/** Hueco máximo (en bloques, distancia chebyshev) que se puentea solo. */
+	/** Largest gap (in blocks, chebyshev distance) that gets auto-bridged. */
 	public static final int MAX_BRIDGE = 6;
 
 	public record ScanResult(Map<Integer, int[]> cols, int xMin, int xMax, int zMin, int zMax,
@@ -45,7 +45,7 @@ public final class ShapeScanner {
 
 		long seed = findSeed(cache, seedX, seedZ);
 
-		// 1) caminar el componente 8-conexo de la línea
+		// 1) walk the line's 8-connected component
 		Set<Long> wall = new HashSet<>();
 		ArrayDeque<Long> queue = new ArrayDeque<>();
 		wall.add(seed);
@@ -68,7 +68,7 @@ public final class ShapeScanner {
 			}
 		}
 
-		// 2) extremos de línea (<=1 vecino) y puenteo de huecos pequeños
+		// 2) line endpoints (<=1 neighbor) and small gap bridging
 		List<long[]> endpoints = new ArrayList<>();
 		for (long p : wall) {
 			int px = unpackX(p), pz = unpackZ(p);
@@ -114,7 +114,7 @@ public final class ShapeScanner {
 			if (e[1] == 0) openEnds.add(new int[]{unpackX(e[0]), unpackZ(e[0])});
 		}
 
-		// 3) flood fill 4-conexo desde afuera del bounding box (+1 de margen)
+		// 3) 4-connected flood fill from outside the bounding box (+1 padding)
 		int xMin = Integer.MAX_VALUE, xMax = Integer.MIN_VALUE, zMin = Integer.MAX_VALUE, zMax = Integer.MIN_VALUE;
 		for (long p : wall) {
 			int px = unpackX(p), pz = unpackZ(p);
@@ -161,7 +161,7 @@ public final class ShapeScanner {
 					+ (where.isEmpty() ? "none found (gap wider than " + MAX_BRIDGE + " blocks?)" : where));
 		}
 
-		// 4) intervalos de z por columna x (dentro = todo lo que no es "outside")
+		// 4) z intervals per x column (inside = everything that is not "outside")
 		Map<Integer, int[]> cols = new HashMap<>();
 		List<Integer> row = new ArrayList<>();
 		for (int i = 0; i < w; i++) {
@@ -192,7 +192,7 @@ public final class ShapeScanner {
 		return new ScanResult(cols, xMin, xMax, zMin, zMax, wall.size(), area, bridged, openEnds);
 	}
 
-	/** Busca el bloque marcador más cercano a la semilla en anillos crecientes. */
+	/** Finds the marker block closest to the seed in growing rings. */
 	private static long findSeed(ChunkCache cache, int seedX, int seedZ) throws ScanException {
 		if (cache.isMarker(seedX, seedZ)) return pack(seedX, seedZ);
 		for (int r = 1; r <= SEED_RADIUS; r++) {
@@ -220,7 +220,7 @@ public final class ShapeScanner {
 		return (int) p;
 	}
 
-	/** Acceso a bloques cacheando el último chunk (el escaneo va por vecinos). */
+	/** Block access caching the last chunk (the scan moves between neighbors). */
 	private static final class ChunkCache {
 		private final ServerLevel level;
 		private final int y;
