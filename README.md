@@ -43,6 +43,12 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
    outline of 4,350 blocks. Objectives: bigculo_break / bigculo_place.
    ```
 
+   **Just want a rectangle?** Skip the drawing entirely: give it two opposite corners and the ceiling Y instead:
+
+   ```
+   /shapeboard createbox spawnzone 30640 4768 31631 6079 150
+   ```
+
 3. **Give it a pretty name.** This is what players see on the sidebar:
 
    ```
@@ -63,6 +69,7 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | Command | Who | What |
 |---|---|---|
 | `/shapeboard create <id> <block> <y> [x z]` | OP | Scan the marker line and create a shape. `x z` optional start point (required from console) |
+| `/shapeboard createbox <id> <x1> <z1> <x2> <z2> <y>` | OP | Rectangular zone with no drawing at all: two opposite corners + the ceiling Y (only blocks below it count) |
 | `/shapeboard rename <id> <name...>` | OP | Set the display name shown on the sidebar |
 | `/shapeboard metric <id> <break\|place\|both>` | OP | What the leaderboard ranks by: blocks broken (default), placed, or the sum. Perfect for build/decoration zones |
 | `/shapeboard delete <id>` | OP | Delete the shape (scoreboard objectives are kept) |
@@ -91,7 +98,7 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 
 **What if my outline has a hole in it?** The scan fails and prints the coordinates of the open line ends. Patch them (or leave up to 6 blocks, which bridge automatically) and rerun create.
 
-**Can I track a build or decoration area that has no outline?** Yes: the marker line is only needed during the scan. Draw a temporary outline with any cheap block at a Y above the build, run create, then remove the blocks: the shape keeps working forever (the mask is stored in `world/shapeboard/`). Then set `/shapeboard metric <id> place` so the leaderboard ranks by blocks placed instead of dug (or `both` for the sum).
+**Can I track a build or decoration area that has no outline?** Yes, two ways. If a rectangle is enough, `/shapeboard createbox <id> <x1> <z1> <x2> <z2> <y>` needs no blocks at all. For a custom shape, the marker line is only needed during the scan: draw a temporary outline with any cheap block at a Y above the build, run create, then remove the blocks; the shape keeps working forever (the mask is stored in `world/shapeboard/`). Either way, set `/shapeboard metric <id> place` so the leaderboard ranks by blocks placed instead of dug (or `both` for the sum).
 
 **Can I track an area that already had digging?** Objectives start at zero when the shape is created. If you have previous numbers in another objective, copy them in with `/scoreboard players operation`.
 

@@ -53,6 +53,14 @@ public final class ShapeBoardCommand {
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.then(Commands.argument("name", StringArgumentType.greedyString())
 										.executes(ShapeBoardCommand::rename))))
+				.then(Commands.literal("createbox").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word())
+								.then(Commands.argument("x1", IntegerArgumentType.integer())
+										.then(Commands.argument("z1", IntegerArgumentType.integer())
+												.then(Commands.argument("x2", IntegerArgumentType.integer())
+														.then(Commands.argument("z2", IntegerArgumentType.integer())
+																.then(Commands.argument("y", IntegerArgumentType.integer(-64, 320))
+																		.executes(ShapeBoardCommand::createBox))))))))
 				.then(Commands.literal("metric").requires(s -> s.hasPermission(2))
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.then(Commands.argument("value", StringArgumentType.word()).suggests(METRICS)
@@ -77,6 +85,53 @@ public final class ShapeBoardCommand {
 				.then(Commands.literal("show").executes(ctx -> setHidden(ctx, false))));
 	}
 
+	/** Shared id validation for create/createbox. */
+	private static boolean validNewId(CommandSourceStack source, String id) {
+		if (!id.matches("[a-z0-9_-]{1,24}")) {
+			source.sendFailure(Component.literal("Shape id must be 1-24 chars of [a-z0-9_-]"));
+			return false;
+		}
+		if (ShapeBoard.INSTANCE.store.byId(id) != null) {
+			source.sendFailure(Component.literal("A shape with id '" + id + "' already exists"));
+			return false;
+		}
+		return true;
+	}
+
+	/** Rectangular zone with no marker blocks: two corners + ceiling Y. */
+	private static int createBox(CommandContext<CommandSourceStack> ctx) {
+		CommandSourceStack source = ctx.getSource();
+		ShapeBoard mod = ShapeBoard.INSTANCE;
+		String id = StringArgumentType.getString(ctx, "id").toLowerCase();
+		if (!validNewId(source, id)) return 0;
+		int x1 = IntegerArgumentType.getInteger(ctx, "x1"), z1 = IntegerArgumentType.getInteger(ctx, "z1");
+		int x2 = IntegerArgumentType.getInteger(ctx, "x2"), z2 = IntegerArgumentType.getInteger(ctx, "z2");
+		int y = IntegerArgumentType.getInteger(ctx, "y");
+		int xMin = Math.min(x1, x2), xMax = Math.max(x1, x2);
+		int zMin = Math.min(z1, z2), zMax = Math.max(z1, z2);
+		long area = (long) (xMax - xMin + 1) * (zMax - zMin + 1);
+		if (area > ShapeScanner.MAX_GRID) {
+			source.sendFailure(Component.literal("Box is too big (" + String.format("%,d", area) + " columns)"));
+			return 0;
+		}
+		java.util.Map<Integer, int[]> cols = new java.util.HashMap<>();
+		for (int x = xMin; x <= xMax; x++) {
+			cols.put(x, new int[]{zMin, zMax});
+		}
+		Shape shape = new Shape(id, id, "box", y, source.getLevel().dimension().location().toString(),
+				xMin, xMax, zMin, zMax, cols);
+		mod.store.add(shape);
+		mod.store.save(source.getServer());
+		mod.getOrCreateObjective(shape, true);
+		mod.getOrCreateObjective(shape, false);
+		final String out = "Box shape '" + id + "' created: " + String.format("%,d", area)
+				+ " columns, x[" + xMin + ".." + xMax + "] z[" + zMin + ".." + zMax + "], counts below y" + y
+				+ ". Objectives: " + shape.breakObjective() + " / " + shape.placeObjective()
+				+ ". Rename it with /shapeboard rename " + id + " <display name>";
+		source.sendSuccess(() -> ShapeBoard.prefix().append(Component.literal(out).withStyle(ChatFormatting.GREEN)), true);
+		return 1;
+	}
+
 	private static int create(CommandContext<CommandSourceStack> ctx, Integer seedX, Integer seedZ) {
 		CommandSourceStack source = ctx.getSource();
 		ShapeBoard mod = ShapeBoard.INSTANCE;
@@ -84,14 +139,7 @@ public final class ShapeBoardCommand {
 		ResourceLocation markerId = ResourceLocationArgument.getId(ctx, "marker");
 		int y = IntegerArgumentType.getInteger(ctx, "y");
 
-		if (!id.matches("[a-z0-9_-]{1,24}")) {
-			source.sendFailure(Component.literal("Shape id must be 1-24 chars of [a-z0-9_-]"));
-			return 0;
-		}
-		if (mod.store.byId(id) != null) {
-			source.sendFailure(Component.literal("A shape with id '" + id + "' already exists"));
-			return 0;
-		}
+		if (!validNewId(source, id)) return 0;
 		Block marker = BuiltInRegistries.BLOCK.getOptional(markerId).orElse(null);
 		if (marker == null) {
 			source.sendFailure(Component.literal("Unknown block: " + markerId));

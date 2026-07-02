@@ -43,6 +43,12 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
    outline of 4,350 blocks. Objectives: bigculo_break / bigculo_place.
    ```
 
+   **¿Solo quieres un rectángulo?** Sáltate el dibujo por completo: dale dos esquinas opuestas y la Y techo:
+
+   ```
+   /shapeboard createbox spawnzone 30640 4768 31631 6079 150
+   ```
+
 3. **Ponle un nombre bonito.** Es lo que los jugadores ven en el sidebar:
 
    ```
@@ -63,6 +69,7 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | Comando | Quién | Qué hace |
 |---|---|---|
 | `/shapeboard create <id> <bloque> <y> [x z]` | OP | Escanea la línea marcadora y crea la shape. `x z` punto de partida opcional (obligatorio desde consola) |
+| `/shapeboard createbox <id> <x1> <z1> <x2> <z2> <y>` | OP | Zona rectangular sin dibujar nada: dos esquinas opuestas + la Y techo (solo cuenta lo de abajo) |
 | `/shapeboard rename <id> <nombre...>` | OP | Cambia el nombre que se muestra en el sidebar |
 | `/shapeboard metric <id> <break\|place\|both>` | OP | Por qué rankea el leaderboard: bloques rotos (default), colocados, o la suma. Perfecto para zonas de construcción/decoración |
 | `/shapeboard delete <id>` | OP | Borra la shape (los objetivos de scoreboard se conservan) |
@@ -91,7 +98,7 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 
 **¿Y si mi contorno tiene un agujero?** El escaneo falla e imprime las coordenadas de los extremos abiertos de la línea. Párchalos (o deja hasta 6 bloques, que se puentean solos) y vuelve a correr create.
 
-**¿Puedo trackear una zona de construcción o decoración que no tiene contorno?** Sí: la línea marcadora solo hace falta durante el escaneo. Dibuja un contorno temporal con cualquier bloque barato a una Y por encima de la obra, corre create, y borra los bloques: la shape sigue funcionando para siempre (la máscara queda guardada en `world/shapeboard/`). Después pon `/shapeboard metric <id> place` para que el leaderboard rankee por bloques colocados en vez de picados (o `both` para la suma).
+**¿Puedo trackear una zona de construcción o decoración que no tiene contorno?** Sí, de dos maneras. Si con un rectángulo te vale, `/shapeboard createbox <id> <x1> <z1> <x2> <z2> <y>` no necesita ni un bloque. Para una forma custom, la línea marcadora solo hace falta durante el escaneo: dibuja un contorno temporal con cualquier bloque barato a una Y por encima de la obra, corre create, y borra los bloques; la shape sigue funcionando para siempre (la máscara queda guardada en `world/shapeboard/`). En ambos casos, pon `/shapeboard metric <id> place` para que el leaderboard rankee por bloques colocados en vez de picados (o `both` para la suma).
 
 **¿Puedo trackear una zona donde ya se picó antes?** Los objetivos arrancan en cero al crear la shape. Si tienes números previos en otro objetivo, cópialos con `/scoreboard players operation`.
 
