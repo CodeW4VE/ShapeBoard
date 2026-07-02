@@ -66,7 +66,22 @@ public final class SidebarManager {
 		lastSent.remove(uuid);
 	}
 
-	/** Refresco periódico: solo manda lo que cambió. */
+	/**
+	 * Refresco inmediato al contarse un bloque: el sidebar vanilla se siente
+	 * instantáneo porque cada cambio de score viaja al momento; esto replica
+	 * eso para los que están mirando esa shape (refresh solo manda diffs, así
+	 * que cuesta un paquete por bloque y viewer).
+	 */
+	public void onScoreChange(MinecraftServer server, ShapeStore store, String shapeId) {
+		if (viewing.isEmpty()) return;
+		Shape shape = store.byId(shapeId);
+		if (shape == null) return;
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			if (shapeId.equals(viewing.get(player.getUUID()))) refresh(player, shape);
+		}
+	}
+
+	/** Refresco periódico de respaldo: solo manda lo que cambió. */
 	public void tick(MinecraftServer server, ShapeStore store) {
 		if (viewing.isEmpty()) return;
 		for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {

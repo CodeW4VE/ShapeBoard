@@ -79,6 +79,7 @@ public class ShapeBoard implements ModInitializer {
 		if (shape == null || pos.getY() >= shape.yLines) return;
 		Objective obj = getOrCreateObjective(shape, isBreak);
 		server.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(player.getScoreboardName()), obj).add(1);
+		if (isBreak) sidebar.onScoreChange(server, store, shape.id);
 	}
 
 	public Objective getOrCreateObjective(Shape shape, boolean isBreak) {
