@@ -1,0 +1,19 @@
+pluginManagement {
+	repositories {
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		mavenCentral()
+		gradlePluginPortal()
+	}
+}
+
+plugins {
+	// Descarga el JDK que pida el toolchain si no hay uno instalado
+	// (la maquina solo tiene JRE 25, sin javac)
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+// Should match your modid
+rootProject.name = 'shapeboard'

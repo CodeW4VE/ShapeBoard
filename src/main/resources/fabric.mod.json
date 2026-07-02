@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"id": "shapeboard",
+	"version": "${version}",
+	"name": "ShapeBoard",
+	"description": "Track block breaks and placements inside ANY shape you outline with marker blocks in the sky (not just boxes). Per-player sidebar leaderboard that appears when you enter the area. Server-side only: players need nothing installed.",
+	"authors": [
+		"tvtvirus"
+	],
+	"contact": {
+		"homepage": "https://w4ve.xyz/",
+		"sources": "https://github.com/CodeW4VE/ShapeBoard"
+	},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"xyz.w4ve.shapeboard.ShapeBoard"
+		]
+	},
+	"mixins": [
+		"shapeboard.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": ">=1.21",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
