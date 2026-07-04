@@ -120,6 +120,7 @@ public final class ShapeStore {
 		o.addProperty("id", s.id);
 		o.addProperty("name", s.displayName);
 		o.addProperty("metric", s.metric);
+		o.addProperty("showTotal", s.showTotal);
 		o.addProperty("marker", s.marker);
 		o.addProperty("y", s.yLines);
 		o.addProperty("dim", s.dimension);
@@ -161,6 +162,7 @@ public final class ShapeStore {
 				o.get("zMax").getAsInt(),
 				cols);
 		if (o.has("metric")) s.metric = o.get("metric").getAsString();
+		if (o.has("showTotal")) s.showTotal = o.get("showTotal").getAsBoolean();
 		return s;
 	}
 }

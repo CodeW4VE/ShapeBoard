@@ -31,6 +31,15 @@ import java.util.UUID;
 public final class SidebarManager {
 	private static final String FAKE_OBJ = "shapeboard_view";
 	private static final int MAX_LINES = 15;
+	/** Owner key for the aggregate line. '$' can't appear in a player name, so it never collides. */
+	private static final String TOTAL_KEY = "sb$total";
+	private static final Component TOTAL_LABEL =
+			Component.literal("» Total").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+
+	/** The Total line renders with its own label; player lines use their name (empty display). */
+	private static Optional<Component> displayFor(String owner) {
+		return owner.equals(TOTAL_KEY) ? Optional.of(TOTAL_LABEL) : Optional.empty();
+	}
 
 	private final Map<UUID, String> viewing = new HashMap<>();          // uuid -> shapeId
 	private final Map<UUID, Map<String, Integer>> lastSent = new HashMap<>();
@@ -110,7 +119,7 @@ public final class SidebarManager {
 			Integer prev = sent.get(e.getKey());
 			if (prev == null || !prev.equals(e.getValue())) {
 				player.connection.send(new ClientboundSetScorePacket(
-						e.getKey(), FAKE_OBJ, e.getValue(), Optional.empty(), Optional.empty()));
+						e.getKey(), FAKE_OBJ, e.getValue(), displayFor(e.getKey()), Optional.empty()));
 			}
 		}
 		lastSent.put(player.getUUID(), lines);
@@ -129,9 +138,17 @@ public final class SidebarManager {
 		List<Map.Entry<String, Integer>> entries = new ArrayList<>(totals.entrySet());
 		entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
 
+		// Aggregate line first; its score = sum, so the client sorts it to the top.
+		if (shape.showTotal) {
+			int sum = 0;
+			for (int v : totals.values()) sum += v;
+			lines.put(TOTAL_KEY, sum);
+		}
+		int playerLimit = shape.showTotal ? MAX_LINES - 1 : MAX_LINES;
+
 		String self = player.getScoreboardName();
 		boolean selfInTop = false;
-		int limit = Math.min(MAX_LINES, entries.size());
+		int limit = Math.min(playerLimit, entries.size());
 		for (int i = 0; i < limit; i++) {
 			Map.Entry<String, Integer> e = entries.get(i);
 			lines.put(e.getKey(), e.getValue());
@@ -139,9 +156,10 @@ public final class SidebarManager {
 		}
 		if (!selfInTop && totals.containsKey(self)) {
 			if (lines.size() >= MAX_LINES) {
+				// evict the lowest player line, never the Total
 				String last = null;
-				for (String k : lines.keySet()) last = k;
-				lines.remove(last);
+				for (String k : lines.keySet()) if (!k.equals(TOTAL_KEY)) last = k;
+				if (last != null) lines.remove(last);
 			}
 			lines.put(self, totals.get(self));
 		}

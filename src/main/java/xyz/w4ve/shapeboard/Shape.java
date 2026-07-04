@@ -18,6 +18,8 @@ public final class Shape {
 	public final Map<Integer, int[]> cols;
 	/** what the sidebar/top ranks by: "break" (digs), "place" or "both" (sum) */
 	public String metric = "break";
+	/** show a "Total" line (sum of everyone) at the top of the sidebar */
+	public boolean showTotal = true;
 
 	public Shape(String id, String displayName, String marker, int yLines, String dimension,
 			int xMin, int xMax, int zMin, int zMax, Map<Integer, int[]> cols) {

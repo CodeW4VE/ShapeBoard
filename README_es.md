@@ -72,6 +72,7 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | `/shapeboard createbox <id> <x1> <z1> <x2> <z2> <y>` | OP | Zona rectangular sin dibujar nada: dos esquinas opuestas + la Y techo (solo cuenta lo de abajo) |
 | `/shapeboard rename <id> <nombre...>` | OP | Cambia el nombre que se muestra en el sidebar |
 | `/shapeboard metric <id> <break\|place\|both>` | OP | Por qué rankea el leaderboard: bloques rotos (default), colocados, o la suma. Perfecto para zonas de construcción/decoración |
+| `/shapeboard total <id> <on\|off>` | OP | Muestra una línea **Total** arriba del sidebar con el conteo combinado de todos (activada por defecto) |
 | `/shapeboard delete <id>` | OP | Borra la shape (los objetivos de scoreboard se conservan) |
 | `/shapeboard list` | todos | Lista las shapes con área e info del marcador |
 | `/shapeboard info <id>` | todos | Detalles de una shape |

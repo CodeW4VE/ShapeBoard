@@ -36,6 +36,8 @@ public final class ShapeBoardCommand {
 	private static final List<String> METRIC_VALUES = List.of("break", "place", "both");
 	private static final SuggestionProvider<CommandSourceStack> METRICS = (ctx, builder) ->
 			SharedSuggestionProvider.suggest(METRIC_VALUES, builder);
+	private static final SuggestionProvider<CommandSourceStack> ON_OFF = (ctx, builder) ->
+			SharedSuggestionProvider.suggest(List.of("on", "off"), builder);
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(Commands.literal("shapeboard")
@@ -65,6 +67,10 @@ public final class ShapeBoardCommand {
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.then(Commands.argument("value", StringArgumentType.word()).suggests(METRICS)
 										.executes(ShapeBoardCommand::metric))))
+				.then(Commands.literal("total").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.then(Commands.argument("value", StringArgumentType.word()).suggests(ON_OFF)
+										.executes(ShapeBoardCommand::total))))
 				.then(Commands.literal("delete").requires(s -> s.hasPermission(2))
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.executes(ShapeBoardCommand::delete)))
@@ -219,6 +225,27 @@ public final class ShapeBoardCommand {
 		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
 				.append(Component.literal("'" + shape.id + "' now ranks by " + what
 						+ ". Sidebar and /shapeboard top follow it.").withStyle(ChatFormatting.GREEN)), true);
+		return 1;
+	}
+
+	private static int total(CommandContext<CommandSourceStack> ctx) {
+		Shape shape = ShapeBoard.INSTANCE.store.byId(StringArgumentType.getString(ctx, "id"));
+		if (shape == null) return unknownShape(ctx);
+		String value = StringArgumentType.getString(ctx, "value").toLowerCase();
+		boolean on;
+		if (value.equals("on")) on = true;
+		else if (value.equals("off")) on = false;
+		else {
+			ctx.getSource().sendFailure(Component.literal("Use: on or off"));
+			return 0;
+		}
+		shape.showTotal = on;
+		ShapeBoard.INSTANCE.store.save(ctx.getSource().getServer());
+		// re-render the sidebar for anyone currently watching this shape
+		ShapeBoard.INSTANCE.sidebar.onScoreChange(ctx.getSource().getServer(), ShapeBoard.INSTANCE.store, shape.id);
+		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
+				.append(Component.literal("Total line " + (on ? "shown" : "hidden") + " on '" + shape.id
+						+ "' sidebar.").withStyle(ChatFormatting.GREEN)), true);
 		return 1;
 	}
 

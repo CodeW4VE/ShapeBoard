@@ -72,6 +72,7 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard createbox <id> <x1> <z1> <x2> <z2> <y>` | OP | Rectangular zone with no drawing at all: two opposite corners + the ceiling Y (only blocks below it count) |
 | `/shapeboard rename <id> <name...>` | OP | Set the display name shown on the sidebar |
 | `/shapeboard metric <id> <break\|place\|both>` | OP | What the leaderboard ranks by: blocks broken (default), placed, or the sum. Perfect for build/decoration zones |
+| `/shapeboard total <id> <on\|off>` | OP | Show a **Total** line at the top of the sidebar with everyone's combined count (on by default) |
 | `/shapeboard delete <id>` | OP | Delete the shape (scoreboard objectives are kept) |
 | `/shapeboard list` | all | List shapes with area and marker info |
 | `/shapeboard info <id>` | all | Details of one shape |
