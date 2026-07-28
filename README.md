@@ -20,8 +20,8 @@ The sidebar is also per-player for real. It is sent with targeted scoreboard pac
 
 ## Install
 
-1. Fabric server for Minecraft 1.21 with [Fabric API](https://modrinth.com/mod/fabric-api).
-2. Drop `shapeboard-x.y.z+1.21.jar` into `mods/`.
+1. Fabric server for Minecraft 1.21.6 with [Fabric API](https://modrinth.com/mod/fabric-api).
+2. Drop `shapeboard-x.y.z+1.21.6.jar` into `mods/`.
 3. Restart. Done: there is no config file to edit.
 
 ## Quick start

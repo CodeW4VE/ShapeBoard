@@ -166,7 +166,7 @@ public class ShapeBoard implements ModInitializer {
 		return Component.literal(cmd).withStyle(style -> style
 				.withColor(ChatFormatting.YELLOW)
 				.withBold(true)
-				.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, cmd))
-				.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to run"))));
+				.withClickEvent(new ClickEvent.RunCommand(cmd))
+				.withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to run"))));
 	}
 }
