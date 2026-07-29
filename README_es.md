@@ -55,7 +55,17 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
    /shapeboard rename bigculo Big Culo
    ```
 
-4. **Ya está.** Desde ese momento, todo lo que se pique o coloque dentro de la forma y por debajo de la línea marcadora cuenta en los objetivos vanilla de scoreboard `bigculo_break` y `bigculo_place`. A quien entre le sale:
+4. **Elige por qué ordena la tabla.** Este es el paso que se salta todo el mundo: el sidebar ordena por **bloques picados** salvo que digas otra cosa. Las roturas y las colocaciones siempre se cuentan, pero solo una de las dos manda en la tabla.
+
+   ```
+   /shapeboard metric bigculo break    # picar (por defecto)
+   /shapeboard metric bigculo place    # construcción y decoración
+   /shapeboard metric bigculo both     # la suma
+   ```
+
+   ¿Estás construyendo en vez de picando? Pon la línea de `place` o la tabla se va a quedar a cero mientras todos trabajan.
+
+5. **Ya está.** Desde ese momento, todo lo que se pique o coloque dentro de la forma y por debajo de la línea marcadora cuenta en los objetivos vanilla de scoreboard `bigculo_break` y `bigculo_place`. A quien entre le sale:
 
    ```
    [ShapeBoard] You entered Big Culo. Blocks you mine or place here count toward the leaderboard.
