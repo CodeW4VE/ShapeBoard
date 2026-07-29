@@ -21,6 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.ScoreHolder;
 import net.minecraft.world.scores.PlayerScoreEntry;
 import net.minecraft.world.scores.Scoreboard;
 
@@ -96,6 +97,10 @@ public final class ShapeBoardCommand {
 								.then(Commands.literal("fromscan").executes(ShapeBoardCommand::baselineFromScan))
 								.then(Commands.argument("blocks", LongArgumentType.longArg(0))
 										.executes(ShapeBoardCommand::baseline))))
+				.then(Commands.literal("untracked").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.then(Commands.argument("name", StringArgumentType.word())
+										.executes(ShapeBoardCommand::untracked))))
 				.then(Commands.literal("delete").requires(s -> s.hasPermission(2))
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.executes(ShapeBoardCommand::delete)))
@@ -327,6 +332,11 @@ public final class ShapeBoardCommand {
 				snap -> {
 					shape.lastScan = snap;
 					ShapeBoard.INSTANCE.store.save(source.getServer());
+					if (shape.untrackedName != null) {
+						syncUntracked(source.getServer(), shape);
+						ShapeBoard.INSTANCE.sidebar.onScoreChange(source.getServer(),
+								ShapeBoard.INSTANCE.store, shape.id);
+					}
 					// also to the server log: scans are usually fired from cron
 					// over RCON, and by the time they finish that connection is
 					// gone, so the command feedback below goes nowhere.
@@ -521,6 +531,66 @@ public final class ShapeBoardCommand {
 		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
 				.append(Component.literal(out).withStyle(ChatFormatting.GREEN)), true);
 		return 1;
+	}
+
+	/** Names the holder that carries the digs no player was credited for. */
+	private static int untracked(CommandContext<CommandSourceStack> ctx) {
+		Shape shape = ShapeBoard.INSTANCE.store.byId(StringArgumentType.getString(ctx, "id"));
+		if (shape == null) return unknownShape(ctx);
+		String name = StringArgumentType.getString(ctx, "name");
+		CommandSourceStack source = ctx.getSource();
+
+		if (name.equalsIgnoreCase("off")) {
+			String old = shape.untrackedName;
+			shape.untrackedName = null;
+			ShapeBoard.INSTANCE.store.save(source.getServer());
+			if (old != null) {
+				source.getServer().getScoreboard().resetSinglePlayerScore(
+						ScoreHolder.forNameOnly(old), source.getServer().getScoreboard()
+								.getObjective(shape.breakObjective()));
+			}
+			source.sendSuccess(() -> ShapeBoard.prefix().append(Component.literal(
+					"Untracked digs are no longer shown on '" + shape.id + "'"
+							+ (old != null ? " (removed '" + old + "')" : "") + ".")
+					.withStyle(ChatFormatting.GREEN)), true);
+			return 1;
+		}
+
+		shape.untrackedName = name;
+		ShapeBoard.INSTANCE.store.save(source.getServer());
+		long gap = syncUntracked(source.getServer(), shape);
+		final String out = shape.lastScan == null
+				? "'" + name + "' will hold the untracked digs of '" + shape.id
+						+ "'. Run /shapeboard scan " + shape.id + " to fill it in."
+				: "'" + name + "' now holds " + String.format("%,d", Math.max(0, gap))
+						+ " untracked digs on '" + shape.id + "', resynced after every scan.";
+		source.sendSuccess(() -> ShapeBoard.prefix()
+				.append(Component.literal(out).withStyle(ChatFormatting.GREEN)), true);
+		return 1;
+	}
+
+	/**
+	 * Sets the untracked holder to whatever the scan says is missing from the
+	 * per-player scores. Returns the gap (negative means the counters are ahead
+	 * of the scan, in which case the holder is cleared).
+	 */
+	static long syncUntracked(net.minecraft.server.MinecraftServer server, Shape shape) {
+		if (shape.untrackedName == null || shape.lastScan == null) return 0;
+		Scoreboard sb = server.getScoreboard();
+		Objective obj = ShapeBoard.INSTANCE.getOrCreateObjective(shape, true);
+		long counted = 0;
+		for (PlayerScoreEntry e : sb.listPlayerScores(obj)) {
+			if (e.owner().startsWith("#") || e.owner().equals(shape.untrackedName)) continue;
+			counted += e.value();
+		}
+		long gap = shape.lastScan.cleared() - counted;
+		ScoreHolder holder = ScoreHolder.forNameOnly(shape.untrackedName);
+		if (gap > 0) {
+			sb.getOrCreatePlayerScore(holder, obj).set((int) Math.min(Integer.MAX_VALUE, gap));
+		} else {
+			sb.resetSinglePlayerScore(holder, obj);
+		}
+		return gap;
 	}
 
 	/**

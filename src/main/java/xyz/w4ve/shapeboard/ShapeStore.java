@@ -124,6 +124,7 @@ public final class ShapeStore {
 		if (s.yMinScan != null) o.addProperty("scanYMin", s.yMinScan);
 		if (s.yMaxScan != null) o.addProperty("scanYMax", s.yMaxScan);
 		if (s.baselineSolids > 0) o.addProperty("baselineSolids", s.baselineSolids);
+		if (s.untrackedName != null) o.addProperty("untrackedName", s.untrackedName);
 		if (s.baselinePerLayer != null) {
 			JsonArray layers = new JsonArray();
 			for (long v : s.baselinePerLayer) {
@@ -178,6 +179,7 @@ public final class ShapeStore {
 		if (o.has("scanYMin")) s.yMinScan = o.get("scanYMin").getAsInt();
 		if (o.has("scanYMax")) s.yMaxScan = o.get("scanYMax").getAsInt();
 		if (o.has("baselineSolids")) s.baselineSolids = o.get("baselineSolids").getAsLong();
+		if (o.has("untrackedName")) s.untrackedName = o.get("untrackedName").getAsString();
 		if (o.has("baselinePerLayer")) {
 			JsonArray arr = o.getAsJsonArray("baselinePerLayer");
 			s.baselinePerLayer = new long[arr.size()];
