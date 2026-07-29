@@ -90,9 +90,11 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard hide` / `show` | all | Per-player sidebar toggle, remembered across sessions |
 | `/shapeboard contains <id> <x> <z>` | OP | Debug: is this column inside the shape? |
 | `/shapeboard scan <id>` | OP | Count the blocks still standing inside the shape (see [Dig progress](#dig-progress)) |
-| `/shapeboard progress <id>` | all | Progress bar and remaining block count from the last scan |
-| `/shapeboard range <id> <ymin> <ymax>` | OP | Y slice the scan covers (default: world bottom up to the marker Y) |
-| `/shapeboard baseline <id> <blocks>` | OP | How many blocks were there before digging started. `0` = use the raw volume |
+| `/shapeboard progress [id]` | all | Progress bar and remaining block count from the last scan |
+| `/shapeboard layer [y] [id]` | all | One Y layer, measured against what that layer started with |
+| `/shapeboard blocks [id]` | all | Every block type still standing, best first (what you will be hauling out) |
+| `/shapeboard range <id> <ymin> <ymax>` | OP | Y slice the scan covers (default: above the bedrock floor, up to the marker Y) |
+| `/shapeboard baseline <id> <blocks>\|fromscan` | OP | How many blocks were there before digging started. `fromscan` freezes the last scan, `0` = use the raw volume |
 | `/shapeboard untracked <id> <name>` | OP | Hold the digs nobody was credited for (pre-shape digs, explosions, world edits) under a fake name, resynced after every scan. `off` removes it |
 
 ## Dig progress
