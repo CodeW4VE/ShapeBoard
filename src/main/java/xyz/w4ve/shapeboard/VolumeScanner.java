@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
@@ -37,6 +36,7 @@ import java.util.function.Consumer;
 public final class VolumeScanner {
 	/** Only one scan at a time: they are cheap but hammer the IO worker. */
 	private static final AtomicBoolean RUNNING = new AtomicBoolean(false);
+	private static final long[] EMPTY_LONGS = new long[0];
 
 	/** Snapshot of one completed scan, persisted with the shape. */
 	public record Snapshot(long remaining, long volume, long baseline, int chunks, int missingChunks,
@@ -169,10 +169,10 @@ public final class VolumeScanner {
 					missing++;
 					continue;
 				}
-				ListTag sections = root.getList("sections", Tag.TAG_COMPOUND);
+				ListTag sections = root.getListOrEmpty("sections");
 				for (int i = 0; i < sections.size(); i++) {
-					CompoundTag section = sections.getCompound(i);
-					int sectionY = section.getByte("Y");
+					CompoundTag section = sections.getCompoundOrEmpty(i);
+					int sectionY = section.getByteOr("Y", (byte) 0);
 					if (sectionY < secMin || sectionY > secMax) continue;
 					remaining += countSection(section, sectionY, inside, columns, yMin, yMax,
 							mineable, byBlock, perLayer);
@@ -209,16 +209,16 @@ public final class VolumeScanner {
 	 */
 	private static long countSection(CompoundTag section, int sectionY, boolean[] inside, int columns,
 			int yMin, int yMax, Set<String> mineable, Map<String, Long> byBlock, long[] perLayer) {
-		if (!section.contains("block_states", Tag.TAG_COMPOUND)) return 0;
-		CompoundTag states = section.getCompound("block_states");
-		ListTag palette = states.getList("palette", Tag.TAG_COMPOUND);
+		if (!section.contains("block_states")) return 0;
+		CompoundTag states = section.getCompoundOrEmpty("block_states");
+		ListTag palette = states.getListOrEmpty("palette");
 		if (palette.isEmpty()) return 0;
 
 		String[] names = new String[palette.size()];
 		boolean[] counts = new boolean[palette.size()];
 		boolean any = false;
 		for (int i = 0; i < palette.size(); i++) {
-			names[i] = palette.getCompound(i).getString("Name");
+			names[i] = palette.getCompoundOrEmpty(i).getStringOr("Name", "");
 			counts[i] = mineable.contains(names[i]);
 			any |= counts[i];
 		}
@@ -240,7 +240,7 @@ public final class VolumeScanner {
 			return n;
 		}
 
-		long[] data = states.getLongArray("data");
+		long[] data = states.getLongArray("data").orElse(EMPTY_LONGS);
 		if (data.length == 0) return 0;
 		int bits = Math.max(4, 32 - Integer.numberOfLeadingZeros(palette.size() - 1));
 		int perLong = 64 / bits;
