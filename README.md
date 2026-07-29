@@ -93,6 +93,7 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard progress <id>` | all | Progress bar and remaining block count from the last scan |
 | `/shapeboard range <id> <ymin> <ymax>` | OP | Y slice the scan covers (default: world bottom up to the marker Y) |
 | `/shapeboard baseline <id> <blocks>` | OP | How many blocks were there before digging started. `0` = use the raw volume |
+| `/shapeboard untracked <id> <name>` | OP | Hold the digs nobody was credited for (pre-shape digs, explosions, world edits) under a fake name, resynced after every scan. `off` removes it |
 
 ## Dig progress
 
@@ -127,6 +128,18 @@ true reading, measure how many blocks were there before you started and set it:
 
 You can get that number by scanning the same area on a copy of the world from
 before the dig, or on a freshly generated world with the same seed.
+
+**Making the board add up.** The per-player counters only see what players are
+credited for. Blocks dug before the shape existed, explosions and world edits
+are invisible to them, so the leaderboard total can sit well below what the scan
+measured. Point a fake name at the difference and it stops getting lost:
+
+```
+/shapeboard untracked bigculo Untracked
+```
+
+It is recalculated after every scan, so the board always adds up to the real
+hole. `/shapeboard untracked <id> off` removes it.
 
 **Cost.** The scan runs on a worker thread and reads chunk data straight from
 storage, so the server keeps ticking. A 4,096 column zone takes ~50 ms; a

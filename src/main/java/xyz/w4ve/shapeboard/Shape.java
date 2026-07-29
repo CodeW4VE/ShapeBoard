@@ -39,6 +39,13 @@ public final class Shape {
 	public int baselineYMin = 0;
 	/** Last completed volume scan, or null if it was never run. */
 	public VolumeScanner.Snapshot lastScan = null;
+	/**
+	 * Fake score holder that absorbs everything the counters never saw: blocks
+	 * dug before the shape existed, explosions (the game credits those to
+	 * nobody) and world edits. Resynced after each scan, so the board always
+	 * adds up to the measured hole. Null disables it.
+	 */
+	public String untrackedName = null;
 
 	public Shape(String id, String displayName, String marker, int yLines, String dimension,
 			int xMin, int xMax, int zMin, int zMax, Map<Integer, int[]> cols) {

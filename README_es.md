@@ -93,6 +93,7 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | `/shapeboard progress <id>` | todos | Barra de progreso y bloques restantes del último escaneo |
 | `/shapeboard range <id> <ymin> <ymax>` | OP | Franja de Y que cubre el escaneo (por defecto: del fondo del mundo hasta la Y del contorno) |
 | `/shapeboard baseline <id> <bloques>` | OP | Cuántos bloques había antes de empezar a picar. `0` = usar el volumen bruto |
+| `/shapeboard untracked <id> <nombre>` | OP | Guarda bajo un nombre falso los picados que no se le acreditaron a nadie (lo picado antes de crear la shape, explosiones, world edits); se resincroniza tras cada escaneo. `off` lo quita |
 
 ## Progreso de excavación
 
@@ -130,6 +131,19 @@ antes de empezar y fijalo:
 
 Ese número sale de escanear la misma zona en una copia del mundo anterior a la
 excavación, o en un mundo recién generado con la misma seed.
+
+**Que el board cuadre.** Los contadores por jugador solo ven lo que se le
+acredita a alguien. Lo picado antes de que existiera la shape, las explosiones y
+las world edits les son invisibles, asi que el total del leaderboard puede
+quedarse muy por debajo de lo que midio el escaneo. Apunta un nombre falso a esa
+diferencia y deja de perderse:
+
+```
+/shapeboard untracked bigculo Untracked
+```
+
+Se recalcula tras cada escaneo, asi que el board siempre suma el agujero real.
+`/shapeboard untracked <id> off` lo quita.
 
 **Coste.** El escaneo corre en un hilo aparte y lee los chunks directamente del
 almacenamiento, así que el servidor sigue tickeando. Una zona de 4.096 columnas
