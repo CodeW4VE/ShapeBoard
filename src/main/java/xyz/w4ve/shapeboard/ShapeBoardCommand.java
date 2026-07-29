@@ -87,6 +87,10 @@ public final class ShapeBoardCommand {
 								.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 										.executes(ctx -> layer(ctx, StringArgumentType.getString(ctx, "id"),
 												IntegerArgumentType.getInteger(ctx, "y"))))))
+				.then(Commands.literal("blocks")
+						.executes(ctx -> blocks(ctx, null))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.executes(ctx -> blocks(ctx, StringArgumentType.getString(ctx, "id")))))
 				.then(Commands.literal("range").requires(s -> s.hasPermission(2))
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.then(Commands.argument("ymin", IntegerArgumentType.integer(-64, 320))
@@ -530,6 +534,41 @@ public final class ShapeBoardCommand {
 				: "'" + shape.id + "' baseline cleared: back to the raw volume of the Y range.";
 		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
 				.append(Component.literal(out).withStyle(ChatFormatting.GREEN)), true);
+		return 1;
+	}
+
+	/**
+	 * Every block type still standing, best first. One "name count" per line so
+	 * external tools (our Discord bot) can parse it without guessing.
+	 */
+	private static int blocks(CommandContext<CommandSourceStack> ctx, String idArg) {
+		CommandSourceStack source = ctx.getSource();
+		Shape shape = resolveShape(ctx, idArg, "blocks");
+		if (shape == null) return 0;
+		VolumeScanner.Snapshot snap = shape.lastScan;
+		if (snap == null) {
+			source.sendFailure(Component.literal("No volume scan yet for '" + shape.id
+					+ "'. Run /shapeboard scan " + shape.id + " first."));
+			return 0;
+		}
+		source.sendSuccess(() -> Component.literal("— " + shape.displayName + " blocks left —")
+				.withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
+		for (Map.Entry<String, Long> e : snap.topBlocks()) {
+			source.sendSuccess(() -> Component.literal(VolumeScanner.shortName(e.getKey()) + " ")
+					.withStyle(ChatFormatting.WHITE)
+					.append(Component.literal(String.format("%,d", e.getValue()))
+							.withStyle(ChatFormatting.GREEN)), false);
+		}
+		long listed = 0;
+		for (Map.Entry<String, Long> e : snap.topBlocks()) {
+			listed += e.getValue();
+		}
+		final long other = Math.max(0, snap.remaining() - listed);
+		source.sendSuccess(() -> Component.literal("other " + String.format("%,d", other))
+				.withStyle(ChatFormatting.DARK_GRAY), false);
+		source.sendSuccess(() -> Component.literal("Blocks left: "
+				+ String.format("%,d", snap.remaining()) + " in " + snap.topBlocks().size()
+				+ " listed types").withStyle(ChatFormatting.GRAY), false);
 		return 1;
 	}
 

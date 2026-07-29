@@ -37,6 +37,8 @@ public final class VolumeScanner {
 	/** Only one scan at a time: they are cheap but hammer the IO worker. */
 	private static final AtomicBoolean RUNNING = new AtomicBoolean(false);
 	private static final long[] EMPTY_LONGS = new long[0];
+	/** How many block types a snapshot remembers, best first. */
+	public static final int TOP_BLOCKS = 40;
 
 	/** Snapshot of one completed scan, persisted with the shape. */
 	public record Snapshot(long remaining, long volume, long baseline, int chunks, int missingChunks,
@@ -182,7 +184,9 @@ public final class VolumeScanner {
 
 		List<Map.Entry<String, Long>> top = new ArrayList<>(byBlock.entrySet());
 		top.sort(Comparator.comparingLong(Map.Entry<String, Long>::getValue).reversed());
-		if (top.size() > 5) top = new ArrayList<>(top.subList(0, 5));
+		// Kept deep enough that /shapeboard blocks can answer "what will we be
+		// hauling out" properly; the tail past this is rounding noise.
+		if (top.size() > TOP_BLOCKS) top = new ArrayList<>(top.subList(0, TOP_BLOCKS));
 
 		return new Snapshot(remaining, shape.volume(yMin, yMax), baseline, chunks, missing,
 				System.currentTimeMillis() - t0, System.currentTimeMillis() / 1000L, top,
