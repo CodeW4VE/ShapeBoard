@@ -55,7 +55,17 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
    /shapeboard rename bigculo Big Culo
    ```
 
-4. **That is it.** From now on, everything mined or placed inside the shape and below the marker line counts into the vanilla scoreboard objectives `bigculo_break` and `bigculo_place`. Anyone who walks in gets:
+4. **Pick what the leaderboard ranks by.** This is the step people miss: the sidebar ranks by **blocks broken** unless you say otherwise. Both breaks and placements are always counted, but only one of them drives the board.
+
+   ```
+   /shapeboard metric bigculo break    # digs (default)
+   /shapeboard metric bigculo place    # builds and decoration
+   /shapeboard metric bigculo both     # the sum
+   ```
+
+   Building a project rather than digging one? Run the `place` line, or the board will sit at zero while everyone works.
+
+5. **That is it.** From now on, everything mined or placed inside the shape and below the marker line counts into the vanilla scoreboard objectives `bigculo_break` and `bigculo_place`. Anyone who walks in gets:
 
    ```
    [ShapeBoard] You entered Big Culo. Blocks you mine or place here count toward the leaderboard.
