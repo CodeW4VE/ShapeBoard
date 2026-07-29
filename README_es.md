@@ -90,9 +90,11 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | `/shapeboard hide` / `show` | todos | Toggle del sidebar por jugador, se recuerda entre sesiones |
 | `/shapeboard contains <id> <x> <z>` | OP | Debug: ¿esta columna está dentro de la forma? |
 | `/shapeboard scan <id>` | OP | Cuenta los bloques que siguen en pie dentro de la forma (ver [Progreso de excavación](#progreso-de-excavación)) |
-| `/shapeboard progress <id>` | todos | Barra de progreso y bloques restantes del último escaneo |
+| `/shapeboard progress [id]` | todos | Barra de progreso y bloques restantes del último escaneo |
+| `/shapeboard layer [y] [id]` | todos | Una capa de Y, medida contra lo que esa capa tenía al principio |
+| `/shapeboard blocks [id]` | todos | Cada tipo de bloque que sigue en pie, de mayor a menor (lo que vas a tener que sacar) |
 | `/shapeboard range <id> <ymin> <ymax>` | OP | Franja de Y que cubre el escaneo (por defecto: del fondo del mundo hasta la Y del contorno) |
-| `/shapeboard baseline <id> <bloques>` | OP | Cuántos bloques había antes de empezar a picar. `0` = usar el volumen bruto |
+| `/shapeboard baseline <id> <bloques>\|fromscan` | OP | Cuántos bloques había antes de empezar a picar. `fromscan` congela el último escaneo, `0` = usar el volumen bruto |
 | `/shapeboard untracked <id> <nombre>` | OP | Guarda bajo un nombre falso los picados que no se le acreditaron a nadie (lo picado antes de crear la shape, explosiones, world edits); se resincroniza tras cada escaneo. `off` lo quita |
 
 ## Progreso de excavación
