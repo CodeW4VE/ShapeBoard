@@ -317,7 +317,7 @@ public final class ShapeBoardCommand {
 			return 0;
 		}
 
-		int yMin = shape.scanYMin(level.getMinBuildHeight()), yMax = shape.scanYMax();
+		int yMin = shape.scanYMin(level.dimensionType().minY()), yMax = shape.scanYMax();
 		source.sendSuccess(() -> ShapeBoard.prefix().append(Component.literal(
 				"Scanning " + String.format("%,d", shape.area()) + " columns of '" + shape.id
 						+ "' between y" + yMin + " and y" + yMax + ". Saving the world first, this takes a moment...")

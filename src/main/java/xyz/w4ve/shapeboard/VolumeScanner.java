@@ -106,7 +106,7 @@ public final class VolumeScanner {
 		// Block properties are resolved here, on the server thread, so the
 		// worker only ever touches plain strings and numbers.
 		Set<String> mineable = mineableBlockIds();
-		int yMin = shape.scanYMin(level.getMinBuildHeight());
+		int yMin = shape.scanYMin(level.dimensionType().minY());
 		int yMax = shape.scanYMax();
 		long baseline = shape.baselineFor(yMin, yMax);
 
