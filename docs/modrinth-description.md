@@ -1,14 +1,12 @@
 # ShapeBoard
 
-*Read this in [Español](README_es.md).*
-
 **Scoreboards for areas of ANY shape, not just boxes.** Outline your dig zone, perimeter or build area with a line of marker blocks in the sky, run one command, and ShapeBoard tracks every block broken and placed inside that exact shape. When someone walks in, a leaderboard sidebar appears just for them. When they walk out, it goes away.
 
 100% server-side. Players do not install anything.
 
 ## See it in action
 
-![Flying out of the area removes the sidebar, flying back in restores it, live scores included](docs/demo.gif)
+![Flying out of the area removes the sidebar, flying back in restores it, live scores included](https://raw.githubusercontent.com/CodeW4VE/ShapeBoard/main/docs/demo.gif)
 
 Full quality video with sound: [shapeboard-demo.mp4](https://github.com/CodeW4VE/ShapeBoard/releases/download/v1.0.1/shapeboard-demo.mp4)
 
@@ -20,8 +18,8 @@ The sidebar is also per-player for real. It is sent with targeted scoreboard pac
 
 ## Install
 
-1. Fabric server for Minecraft 1.21.6 with [Fabric API](https://modrinth.com/mod/fabric-api).
-2. Drop `shapeboard-x.y.z+1.21.6.jar` into `mods/`.
+1. Fabric server for Minecraft 1.21 with [Fabric API](https://modrinth.com/mod/fabric-api).
+2. Drop `shapeboard-x.y.z+1.21.jar` into `mods/`.
 3. Restart. Done: there is no config file to edit.
 
 ## Quick start
@@ -89,50 +87,6 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard top [id]` | all | Top 10 + totals in chat |
 | `/shapeboard hide` / `show` | all | Per-player sidebar toggle, remembered across sessions |
 | `/shapeboard contains <id> <x> <z>` | OP | Debug: is this column inside the shape? |
-| `/shapeboard scan <id>` | OP | Count the blocks still standing inside the shape (see [Dig progress](#dig-progress)) |
-| `/shapeboard progress <id>` | all | Progress bar and remaining block count from the last scan |
-| `/shapeboard range <id> <ymin> <ymax>` | OP | Y slice the scan covers (default: world bottom up to the marker Y) |
-| `/shapeboard baseline <id> <blocks>` | OP | How many blocks were there before digging started. `0` = use the raw volume |
-
-## Dig progress
-
-Break counters answer "who dug the most". They cannot answer "how much is left",
-because TNT and world edits are not credited to anyone. `/shapeboard scan` answers
-that directly: it counts the blocks **still standing** inside the shape.
-
-```
-/shapeboard scan bigculo
-/shapeboard progress bigculo
-```
-
-```
-— Big Culo progress —
-████████░░░░░░░░░░░░ 41.74%
-Progress: 280,374 / 671,744 blocks cleared, 391,370 remaining
-Left to dig: deepslate 202,334, stone 115,216, tuff 15,297, diorite 12,677
-```
-
-A block counts as "still to dig" when it is solid, collidable and breakable.
-Air, water, lava, leaves, grass and other decoration, and bedrock are all
-skipped, so the bar reaches 100% when the hole is actually finished.
-
-**The denominator.** By default it is the raw volume of the Y slice
-(columns x height). That is exact and needs no setup, but natural caves and the
-air above the terrain count as "already dug", so the bar starts above zero. For a
-true reading, measure how many blocks were there before you started and set it:
-
-```
-/shapeboard baseline bigculo 148300000
-```
-
-You can get that number by scanning the same area on a copy of the world from
-before the dig, or on a freshly generated world with the same seed.
-
-**Cost.** The scan runs on a worker thread and reads chunk data straight from
-storage, so the server keeps ticking. A 4,096 column zone takes ~50 ms; a
-800,000 column perimeter takes a few seconds. It saves the world first, so
-freshly dug chunks are always included. Run it from a cron job (hourly or daily)
-and `/shapeboard progress` answers instantly from the stored snapshot.
 
 ## How it works
 
@@ -158,14 +112,6 @@ and `/shapeboard progress` answers instantly from the stored snapshot.
 **Can I track an area that already had digging?** Objectives start at zero when the shape is created. If you have previous numbers in another objective, copy them in with `/scoreboard players operation`.
 
 **Does the scan lag the server?** It loads only the chunks the outline itself touches, once, at create time. A 4,000 block outline takes well under a second on a loaded world.
-
-## Building from source
-
-```
-./gradlew build
-```
-
-The jar lands in `build/libs/`. Java 21+, Gradle downloads everything else.
 
 ## License
 

@@ -21,6 +21,25 @@ public final class Shape {
 	/** show a "Total" line (sum of everyone) at the top of the sidebar */
 	public boolean showTotal = true;
 
+	/** Y range the volume scan looks at; null means "world bottom .. yLines - 1". */
+	public Integer yMinScan = null;
+	public Integer yMaxScan = null;
+	/**
+	 * Blocks that were there before digging started. 0 means "unknown": the
+	 * progress bar then falls back to the raw volume of the Y range, which
+	 * counts natural caves as already dug.
+	 */
+	public long baselineSolids = 0;
+	/**
+	 * Same idea per Y layer, indexed from {@link #baselineYMin}. Without it a
+	 * layer is measured against the shape's full column count, which overstates
+	 * surface layers that were never solid to begin with.
+	 */
+	public long[] baselinePerLayer = null;
+	public int baselineYMin = 0;
+	/** Last completed volume scan, or null if it was never run. */
+	public VolumeScanner.Snapshot lastScan = null;
+
 	public Shape(String id, String displayName, String marker, int yLines, String dimension,
 			int xMin, int xMax, int zMin, int zMax, Map<Integer, int[]> cols) {
 		this.id = id;
@@ -53,6 +72,46 @@ public final class Shape {
 			}
 		}
 		return total;
+	}
+
+	/** Bedrock layers at the bottom of a dimension: nobody is clearing those. */
+	public static final int BEDROCK_LAYERS = 5;
+
+	/**
+	 * Bottom of the scanned slice. By default it starts above the bedrock
+	 * floor, since those layers can never be emptied.
+	 */
+	public int scanYMin(int worldBottom) {
+		return yMinScan != null ? yMinScan : worldBottom + BEDROCK_LAYERS;
+	}
+
+	/** Top of the scanned slice (default: just below the marker lines). */
+	public int scanYMax() {
+		return yMaxScan != null ? yMaxScan : yLines - 1;
+	}
+
+	/** Raw block count of the Y slice: columns * height. */
+	public long volume(int yMin, int yMax) {
+		if (yMax < yMin) return 0;
+		return area() * (yMax - yMin + 1);
+	}
+
+	/** Denominator for the progress bar: the measured baseline, or the raw volume. */
+	public long baselineFor(int yMin, int yMax) {
+		return baselineSolids > 0 ? baselineSolids : volume(yMin, yMax);
+	}
+
+	/** How many blocks one Y layer started with. Falls back to the column count. */
+	public long baselineLayer(int y) {
+		if (baselinePerLayer != null) {
+			int i = y - baselineYMin;
+			if (i >= 0 && i < baselinePerLayer.length) return baselinePerLayer[i];
+		}
+		return area();
+	}
+
+	public boolean hasLayerBaseline() {
+		return baselinePerLayer != null;
 	}
 
 	public String breakObjective() {

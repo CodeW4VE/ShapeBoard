@@ -2,6 +2,7 @@ package xyz.w4ve.shapeboard;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -71,6 +72,30 @@ public final class ShapeBoardCommand {
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.then(Commands.argument("value", StringArgumentType.word()).suggests(ON_OFF)
 										.executes(ShapeBoardCommand::total))))
+				.then(Commands.literal("scan").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.executes(ShapeBoardCommand::scan)))
+				.then(Commands.literal("progress")
+						.executes(ctx -> progress(ctx, null))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.executes(ctx -> progress(ctx, StringArgumentType.getString(ctx, "id")))))
+				.then(Commands.literal("layer")
+						.executes(ctx -> layer(ctx, null, null))
+						.then(Commands.argument("y", IntegerArgumentType.integer(-64, 320))
+								.executes(ctx -> layer(ctx, null, IntegerArgumentType.getInteger(ctx, "y")))
+								.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+										.executes(ctx -> layer(ctx, StringArgumentType.getString(ctx, "id"),
+												IntegerArgumentType.getInteger(ctx, "y"))))))
+				.then(Commands.literal("range").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.then(Commands.argument("ymin", IntegerArgumentType.integer(-64, 320))
+										.then(Commands.argument("ymax", IntegerArgumentType.integer(-64, 320))
+												.executes(ShapeBoardCommand::range)))))
+				.then(Commands.literal("baseline").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.then(Commands.literal("fromscan").executes(ShapeBoardCommand::baselineFromScan))
+								.then(Commands.argument("blocks", LongArgumentType.longArg(0))
+										.executes(ShapeBoardCommand::baseline))))
 				.then(Commands.literal("delete").requires(s -> s.hasPermission(2))
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.executes(ShapeBoardCommand::delete)))
@@ -246,6 +271,282 @@ public final class ShapeBoardCommand {
 		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
 				.append(Component.literal("Total line " + (on ? "shown" : "hidden") + " on '" + shape.id
 						+ "' sidebar.").withStyle(ChatFormatting.GREEN)), true);
+		return 1;
+	}
+
+	/**
+	 * Explicit id, else the shape the player is standing in, else the only one
+	 * there is. Reports the failure itself and returns null.
+	 */
+	private static Shape resolveShape(CommandContext<CommandSourceStack> ctx, String idArg, String sub) {
+		CommandSourceStack source = ctx.getSource();
+		ShapeBoard mod = ShapeBoard.INSTANCE;
+		if (idArg != null) {
+			Shape shape = mod.store.byId(idArg);
+			if (shape == null) unknownShape(ctx);
+			return shape;
+		}
+		if (source.getEntity() instanceof ServerPlayer player) {
+			Shape here = mod.currentShape(player);
+			if (here != null) return here;
+		}
+		if (mod.store.all().size() == 1) return mod.store.all().get(0);
+		source.sendFailure(Component.literal("Which shape? Use /shapeboard " + sub
+				+ " <id> (see /shapeboard list)"));
+		return null;
+	}
+
+	/** Kicks off the off-thread volume scan and reports when it lands. */
+	private static int scan(CommandContext<CommandSourceStack> ctx) {
+		CommandSourceStack source = ctx.getSource();
+		Shape shape = ShapeBoard.INSTANCE.store.byId(StringArgumentType.getString(ctx, "id"));
+		if (shape == null) return unknownShape(ctx);
+		if (VolumeScanner.isRunning()) {
+			source.sendFailure(Component.literal("A volume scan is already running; wait for it to finish."));
+			return 0;
+		}
+		ServerLevel level = null;
+		for (ServerLevel candidate : source.getServer().getAllLevels()) {
+			if (candidate.dimension().location().toString().equals(shape.dimension)) {
+				level = candidate;
+				break;
+			}
+		}
+		if (level == null) {
+			source.sendFailure(Component.literal("Dimension " + shape.dimension + " is not loaded"));
+			return 0;
+		}
+
+		int yMin = shape.scanYMin(level.dimensionType().minY()), yMax = shape.scanYMax();
+		source.sendSuccess(() -> ShapeBoard.prefix().append(Component.literal(
+				"Scanning " + String.format("%,d", shape.area()) + " columns of '" + shape.id
+						+ "' between y" + yMin + " and y" + yMax + ". Saving the world first, this takes a moment...")
+				.withStyle(ChatFormatting.GRAY)), true);
+
+		boolean started = VolumeScanner.scanAsync(source.getServer(), level, shape,
+				snap -> {
+					shape.lastScan = snap;
+					ShapeBoard.INSTANCE.store.save(source.getServer());
+					// also to the server log: scans are usually fired from cron
+					// over RCON, and by the time they finish that connection is
+					// gone, so the command feedback below goes nowhere.
+					ShapeBoard.LOGGER.info(
+							"Scan of '{}' done in {} ms ({} chunks): {} of {} blocks cleared, {} remaining ({}%)",
+							shape.id, snap.millis(), snap.chunks(), snap.cleared(), snap.baseline(),
+							snap.remaining(), String.format("%.2f", snap.fraction() * 100));
+					source.sendSuccess(() -> ShapeBoard.prefix().append(Component.literal(
+							"Scan of '" + shape.id + "' done in " + snap.millis() + " ms ("
+									+ String.format("%,d", snap.chunks()) + " chunks"
+									+ (snap.missingChunks() > 0 ? ", " + snap.missingChunks() + " ungenerated" : "")
+									+ ")").withStyle(ChatFormatting.GREEN)), true);
+					sendProgress(source, shape, snap);
+				},
+				err -> source.sendFailure(Component.literal("Scan failed: " + err)));
+		if (!started) {
+			source.sendFailure(Component.literal("A volume scan is already running; wait for it to finish."));
+			return 0;
+		}
+		return 1;
+	}
+
+	private static int progress(CommandContext<CommandSourceStack> ctx, String idArg) {
+		CommandSourceStack source = ctx.getSource();
+		Shape shape = resolveShape(ctx, idArg, "progress");
+		if (shape == null) return 0;
+		if (shape.lastScan == null) {
+			source.sendFailure(Component.literal("No volume scan yet for '" + shape.id
+					+ "'. Run /shapeboard scan " + shape.id + " first."));
+			return 0;
+		}
+		sendProgress(source, shape, shape.lastScan);
+		return 1;
+	}
+
+	/** Progress readout. External tools (our Discord bot) parse these lines: keep the wording. */
+	private static void sendProgress(CommandSourceStack source, Shape shape, VolumeScanner.Snapshot snap) {
+		double pct = snap.fraction() * 100.0;
+		source.sendSuccess(() -> Component.literal("— " + shape.displayName + " progress —")
+				.withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
+		source.sendSuccess(() -> Component.literal(VolumeScanner.bar(snap.fraction(), 20) + " ")
+				.withStyle(ChatFormatting.GREEN)
+				.append(Component.literal(String.format("%.2f%%", pct))
+						.withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)), false);
+		source.sendSuccess(() -> Component.literal("Progress: ").withStyle(ChatFormatting.GRAY)
+				.append(Component.literal(String.format("%,d", snap.cleared())).withStyle(ChatFormatting.GREEN))
+				.append(Component.literal(" / " + String.format("%,d", snap.baseline())
+						+ " blocks cleared, " + String.format("%,d", snap.remaining()) + " remaining")
+						.withStyle(ChatFormatting.GRAY)), false);
+		if (snap.perLayer() != null) {
+			source.sendSuccess(() -> Component.literal("Layers: ").withStyle(ChatFormatting.GRAY)
+					.append(Component.literal(layerSummary(shape, snap)).withStyle(ChatFormatting.GREEN)), false);
+		}
+		String basis = shape.baselineSolids > 0
+				? "measured baseline"
+				: "raw volume of y" + snap.yMin() + ".." + snap.yMax() + " (natural caves count as dug)";
+		source.sendSuccess(() -> Component.literal("Baseline: " + basis).withStyle(ChatFormatting.DARK_GRAY), false);
+		if (!snap.topBlocks().isEmpty()) {
+			StringBuilder sb = new StringBuilder("Left to dig: ");
+			for (int i = 0; i < snap.topBlocks().size(); i++) {
+				Map.Entry<String, Long> e = snap.topBlocks().get(i);
+				if (i > 0) sb.append(", ");
+				sb.append(VolumeScanner.shortName(e.getKey())).append(" ").append(String.format("%,d", e.getValue()));
+			}
+			final String left = sb.toString();
+			source.sendSuccess(() -> Component.literal(left).withStyle(ChatFormatting.DARK_GRAY), false);
+		}
+		source.sendSuccess(() -> Component.literal("Scanned: " + ago(snap.epochSeconds())
+				+ " (epoch " + snap.epochSeconds() + ")").withStyle(ChatFormatting.DARK_GRAY), false);
+	}
+
+	/**
+	 * One Y layer of the shape. The denominator here is exact with no baseline
+	 * needed: every layer starts as one block per column of the shape.
+	 */
+	private static int layer(CommandContext<CommandSourceStack> ctx, String idArg, Integer yArg) {
+		CommandSourceStack source = ctx.getSource();
+		Shape shape = resolveShape(ctx, idArg, "layer");
+		if (shape == null) return 0;
+		VolumeScanner.Snapshot snap = shape.lastScan;
+		if (snap == null) {
+			source.sendFailure(Component.literal("No volume scan yet for '" + shape.id
+					+ "'. Run /shapeboard scan " + shape.id + " first."));
+			return 0;
+		}
+		if (snap.perLayer() == null) {
+			source.sendFailure(Component.literal("The last scan of '" + shape.id
+					+ "' predates layer tracking. Run /shapeboard scan " + shape.id + " again."));
+			return 0;
+		}
+
+		// no Y given: the layer they are standing on, else where the crew is at
+		int y;
+		if (yArg != null) {
+			y = yArg;
+		} else if (source.getEntity() instanceof ServerPlayer player
+				&& Mth.floor(player.getY()) >= snap.yMin() && Mth.floor(player.getY()) <= snap.yMax()) {
+			y = Mth.floor(player.getY());
+		} else {
+			y = snap.workingLayer();
+			if (y < 0) {
+				source.sendSuccess(() -> ShapeBoard.prefix().append(Component.literal(
+						shape.displayName + " is fully cleared. Nothing left on any layer.")
+						.withStyle(ChatFormatting.GREEN)), false);
+				return 1;
+			}
+		}
+		if (y < snap.yMin() || y > snap.yMax()) {
+			source.sendFailure(Component.literal("y" + y + " is outside the scanned range (y"
+					+ snap.yMin() + ".." + snap.yMax() + ")"));
+			return 0;
+		}
+
+		final int fy = y;
+		long left = snap.layer(y);
+		long total = shape.baselineLayer(y);
+		double frac = total <= 0 ? 1.0 : Math.max(0, 1.0 - (double) left / total);
+		source.sendSuccess(() -> Component.literal("— " + shape.displayName + " · layer y" + fy + " —")
+				.withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
+		source.sendSuccess(() -> Component.literal(VolumeScanner.bar(frac, 20) + " ")
+				.withStyle(ChatFormatting.GREEN)
+				.append(Component.literal(String.format("%.2f%%", frac * 100))
+						.withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)), false);
+		source.sendSuccess(() -> Component.literal("Layer y" + fy + ": ").withStyle(ChatFormatting.GRAY)
+				.append(Component.literal(String.format("%,d", left)).withStyle(ChatFormatting.GREEN))
+				.append(Component.literal(" of " + String.format("%,d", total)
+						+ " blocks remaining").withStyle(ChatFormatting.GRAY)), false);
+		final String area = shape.hasLayerBaseline()
+				? "This layer started with " + String.format("%,d", total) + " blocks"
+				: "A full layer of this shape is " + String.format("%,d", shape.area()) + " blocks";
+		source.sendSuccess(() -> Component.literal(area + ". " + layerSummary(shape, snap))
+				.withStyle(ChatFormatting.DARK_GRAY), false);
+		return 1;
+	}
+
+	/**
+	 * "N of M layers cleared, dug down to yX". The front line is the deepest
+	 * layer that is at least half gone: a single block broken in some cave
+	 * should not read as the crew having reached bedrock.
+	 */
+	private static String layerSummary(Shape shape, VolumeScanner.Snapshot snap) {
+		int cleared = 0, front = Integer.MAX_VALUE, withWork = 0;
+		for (int y = snap.yMin(); y <= snap.yMax(); y++) {
+			long start = shape.baselineLayer(y);
+			if (start <= 0) continue;          // layer was empty to begin with
+			withWork++;
+			long left = snap.layer(y);
+			if (left == 0) cleared++;
+			if (left * 2 <= start) front = Math.min(front, y);
+		}
+		return cleared + " of " + withWork + " layers cleared"
+				+ (front != Integer.MAX_VALUE ? ", dug down to y" + front : "") + ".";
+	}
+
+	private static String ago(long epochSeconds) {
+		long secs = System.currentTimeMillis() / 1000L - epochSeconds;
+		if (secs < 90) return "just now";
+		if (secs < 5400) return (secs / 60) + " min ago";
+		if (secs < 172800) return (secs / 3600) + " h ago";
+		return (secs / 86400) + " days ago";
+	}
+
+	private static int range(CommandContext<CommandSourceStack> ctx) {
+		Shape shape = ShapeBoard.INSTANCE.store.byId(StringArgumentType.getString(ctx, "id"));
+		if (shape == null) return unknownShape(ctx);
+		int yMin = IntegerArgumentType.getInteger(ctx, "ymin");
+		int yMax = IntegerArgumentType.getInteger(ctx, "ymax");
+		if (yMax < yMin) {
+			ctx.getSource().sendFailure(Component.literal("ymax must be >= ymin"));
+			return 0;
+		}
+		shape.yMinScan = yMin;
+		shape.yMaxScan = yMax;
+		ShapeBoard.INSTANCE.store.save(ctx.getSource().getServer());
+		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix().append(Component.literal(
+				"'" + shape.id + "' volume scans now cover y" + yMin + ".." + yMax + " ("
+						+ String.format("%,d", shape.volume(yMin, yMax)) + " blocks). Re-run /shapeboard scan "
+						+ shape.id).withStyle(ChatFormatting.GREEN)), true);
+		return 1;
+	}
+
+	private static int baseline(CommandContext<CommandSourceStack> ctx) {
+		Shape shape = ShapeBoard.INSTANCE.store.byId(StringArgumentType.getString(ctx, "id"));
+		if (shape == null) return unknownShape(ctx);
+		long blocks = LongArgumentType.getLong(ctx, "blocks");
+		shape.baselineSolids = blocks;
+		ShapeBoard.INSTANCE.store.save(ctx.getSource().getServer());
+		final String out = blocks > 0
+				? "'" + shape.id + "' progress is now measured against " + String.format("%,d", blocks)
+						+ " blocks. Re-run /shapeboard scan " + shape.id + " to refresh the bar."
+				: "'" + shape.id + "' baseline cleared: back to the raw volume of the Y range.";
+		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
+				.append(Component.literal(out).withStyle(ChatFormatting.GREEN)), true);
+		return 1;
+	}
+
+	/**
+	 * Freezes the last scan as the "before digging" reference, layers included.
+	 * Meant to be run on an untouched copy of the world (same seed, same shape),
+	 * then the resulting shapes.json is carried over to the live server.
+	 */
+	private static int baselineFromScan(CommandContext<CommandSourceStack> ctx) {
+		Shape shape = ShapeBoard.INSTANCE.store.byId(StringArgumentType.getString(ctx, "id"));
+		if (shape == null) return unknownShape(ctx);
+		VolumeScanner.Snapshot snap = shape.lastScan;
+		if (snap == null) {
+			ctx.getSource().sendFailure(Component.literal("No scan to take the baseline from. Run /shapeboard scan "
+					+ shape.id + " on an untouched copy of the world first."));
+			return 0;
+		}
+		shape.baselineSolids = snap.remaining();
+		shape.baselinePerLayer = snap.perLayer() == null ? null : snap.perLayer().clone();
+		shape.baselineYMin = snap.yMin();
+		ShapeBoard.INSTANCE.store.save(ctx.getSource().getServer());
+		final String out = "Baseline for '" + shape.id + "' set from the last scan: "
+				+ String.format("%,d", shape.baselineSolids) + " blocks"
+				+ (shape.baselinePerLayer != null ? " across " + shape.baselinePerLayer.length + " layers" : "")
+				+ ". Copy world/shapeboard/shapes.json to the live server to use it there.";
+		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
+				.append(Component.literal(out).withStyle(ChatFormatting.GREEN)), true);
 		return 1;
 	}
 

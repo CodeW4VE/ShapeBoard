@@ -121,6 +121,18 @@ public final class ShapeStore {
 		o.addProperty("name", s.displayName);
 		o.addProperty("metric", s.metric);
 		o.addProperty("showTotal", s.showTotal);
+		if (s.yMinScan != null) o.addProperty("scanYMin", s.yMinScan);
+		if (s.yMaxScan != null) o.addProperty("scanYMax", s.yMaxScan);
+		if (s.baselineSolids > 0) o.addProperty("baselineSolids", s.baselineSolids);
+		if (s.baselinePerLayer != null) {
+			JsonArray layers = new JsonArray();
+			for (long v : s.baselinePerLayer) {
+				layers.add(v);
+			}
+			o.add("baselinePerLayer", layers);
+			o.addProperty("baselineYMin", s.baselineYMin);
+		}
+		if (s.lastScan != null) o.add("lastScan", scanToJson(s.lastScan));
 		o.addProperty("marker", s.marker);
 		o.addProperty("y", s.yLines);
 		o.addProperty("dim", s.dimension);
@@ -163,6 +175,76 @@ public final class ShapeStore {
 				cols);
 		if (o.has("metric")) s.metric = o.get("metric").getAsString();
 		if (o.has("showTotal")) s.showTotal = o.get("showTotal").getAsBoolean();
+		if (o.has("scanYMin")) s.yMinScan = o.get("scanYMin").getAsInt();
+		if (o.has("scanYMax")) s.yMaxScan = o.get("scanYMax").getAsInt();
+		if (o.has("baselineSolids")) s.baselineSolids = o.get("baselineSolids").getAsLong();
+		if (o.has("baselinePerLayer")) {
+			JsonArray arr = o.getAsJsonArray("baselinePerLayer");
+			s.baselinePerLayer = new long[arr.size()];
+			for (int i = 0; i < s.baselinePerLayer.length; i++) {
+				s.baselinePerLayer[i] = arr.get(i).getAsLong();
+			}
+			s.baselineYMin = o.has("baselineYMin") ? o.get("baselineYMin").getAsInt() : 0;
+		}
+		if (o.has("lastScan")) s.lastScan = scanFromJson(o.getAsJsonObject("lastScan"));
 		return s;
+	}
+
+	private static JsonObject scanToJson(VolumeScanner.Snapshot snap) {
+		JsonObject o = new JsonObject();
+		o.addProperty("remaining", snap.remaining());
+		o.addProperty("volume", snap.volume());
+		o.addProperty("baseline", snap.baseline());
+		o.addProperty("chunks", snap.chunks());
+		o.addProperty("missingChunks", snap.missingChunks());
+		o.addProperty("millis", snap.millis());
+		o.addProperty("at", snap.epochSeconds());
+		JsonObject top = new JsonObject();
+		for (Map.Entry<String, Long> e : snap.topBlocks()) {
+			top.addProperty(e.getKey(), e.getValue());
+		}
+		o.add("topBlocks", top);
+		o.addProperty("yMin", snap.yMin());
+		o.addProperty("yMax", snap.yMax());
+		o.addProperty("columns", snap.columns());
+		if (snap.perLayer() != null) {
+			JsonArray layers = new JsonArray();
+			for (long v : snap.perLayer()) {
+				layers.add(v);
+			}
+			o.add("perLayer", layers);
+		}
+		return o;
+	}
+
+	private static VolumeScanner.Snapshot scanFromJson(JsonObject o) {
+		List<Map.Entry<String, Long>> top = new ArrayList<>();
+		if (o.has("topBlocks")) {
+			for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("topBlocks").entrySet()) {
+				top.add(Map.entry(e.getKey(), e.getValue().getAsLong()));
+			}
+			top.sort(Map.Entry.<String, Long>comparingByValue().reversed());
+		}
+		long[] perLayer = null;
+		if (o.has("perLayer")) {
+			JsonArray arr = o.getAsJsonArray("perLayer");
+			perLayer = new long[arr.size()];
+			for (int i = 0; i < perLayer.length; i++) {
+				perLayer[i] = arr.get(i).getAsLong();
+			}
+		}
+		return new VolumeScanner.Snapshot(
+				o.get("remaining").getAsLong(),
+				o.get("volume").getAsLong(),
+				o.get("baseline").getAsLong(),
+				o.has("chunks") ? o.get("chunks").getAsInt() : 0,
+				o.has("missingChunks") ? o.get("missingChunks").getAsInt() : 0,
+				o.has("millis") ? o.get("millis").getAsLong() : 0,
+				o.has("at") ? o.get("at").getAsLong() : 0,
+				top,
+				o.has("yMin") ? o.get("yMin").getAsInt() : 0,
+				o.has("yMax") ? o.get("yMax").getAsInt() : 0,
+				o.has("columns") ? o.get("columns").getAsLong() : 0,
+				perLayer);
 	}
 }

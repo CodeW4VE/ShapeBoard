@@ -89,6 +89,54 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | `/shapeboard top [id]` | todos | Top 10 + totales en el chat |
 | `/shapeboard hide` / `show` | todos | Toggle del sidebar por jugador, se recuerda entre sesiones |
 | `/shapeboard contains <id> <x> <z>` | OP | Debug: ¿esta columna está dentro de la forma? |
+| `/shapeboard scan <id>` | OP | Cuenta los bloques que siguen en pie dentro de la forma (ver [Progreso de excavación](#progreso-de-excavación)) |
+| `/shapeboard progress <id>` | todos | Barra de progreso y bloques restantes del último escaneo |
+| `/shapeboard range <id> <ymin> <ymax>` | OP | Franja de Y que cubre el escaneo (por defecto: del fondo del mundo hasta la Y del contorno) |
+| `/shapeboard baseline <id> <bloques>` | OP | Cuántos bloques había antes de empezar a picar. `0` = usar el volumen bruto |
+
+## Progreso de excavación
+
+Los contadores de picado responden "quién picó más", pero no "cuánto falta":
+la TNT y las ediciones de mundo no se le acreditan a nadie. `/shapeboard scan`
+responde eso directamente contando los bloques que **siguen en pie** dentro de
+la forma.
+
+```
+/shapeboard scan bigculo
+/shapeboard progress bigculo
+```
+
+```
+— Big Culo progress —
+████████░░░░░░░░░░░░ 41.74%
+Progress: 280,374 / 671,744 blocks cleared, 391,370 remaining
+Left to dig: deepslate 202,334, stone 115,216, tuff 15,297, diorite 12,677
+```
+
+Un bloque cuenta como "por picar" si es sólido, tiene colisión y se puede
+romper. Quedan fuera el aire, el agua, la lava, las hojas, la hierba y demás
+decoración, y la bedrock, así que la barra llega al 100% cuando el agujero está
+terminado de verdad.
+
+**El denominador.** Por defecto es el volumen bruto de la franja de Y
+(columnas x altura). Es exacto y no necesita preparación, pero las cuevas
+naturales y el aire sobre el terreno cuentan como "ya picado", así que la barra
+arranca por encima de cero. Para una lectura fiel, medí cuántos bloques había
+antes de empezar y fijalo:
+
+```
+/shapeboard baseline bigculo 148300000
+```
+
+Ese número sale de escanear la misma zona en una copia del mundo anterior a la
+excavación, o en un mundo recién generado con la misma seed.
+
+**Coste.** El escaneo corre en un hilo aparte y lee los chunks directamente del
+almacenamiento, así que el servidor sigue tickeando. Una zona de 4.096 columnas
+tarda ~50 ms; un perímetro de 800.000 columnas, unos segundos. Guarda el mundo
+antes, así que los chunks recién picados siempre entran. Corrélo desde un cron
+(cada hora o cada día) y `/shapeboard progress` responde al instante desde el
+snapshot guardado.
 
 ## Cómo funciona
 
