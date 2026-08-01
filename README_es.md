@@ -100,6 +100,7 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | `/shapeboard scan <id>` | OP | Cuenta los bloques que siguen en pie dentro de la forma (ver [Progreso de excavación](#progreso-de-excavación)) |
 | `/shapeboard progress [id]` | todos | Barra de progreso y bloques restantes del último escaneo |
 | `/shapeboard layer [y] [id]` | todos | Una capa de Y, medida contra lo que esa capa tenía al principio |
+| `/shapeboard down <y> [id]` | todos | Todo lo que sigue en pie desde el techo del escaneo hasta esa Y: cuánto falta para dejar la forma limpia hasta y |
 | `/shapeboard blocks [id]` | todos | Cada tipo de bloque que sigue en pie, de mayor a menor (lo que vas a tener que sacar) |
 | `/shapeboard range <id> <ymin> <ymax>` | OP | Franja de Y que cubre el escaneo (por defecto: del fondo del mundo hasta la Y del contorno) |
 | `/shapeboard baseline <id> <bloques>\|fromscan` | OP | Cuántos bloques había antes de empezar a picar. `fromscan` congela el último escaneo, `0` = usar el volumen bruto |
@@ -184,6 +185,24 @@ diferencia y deja de perderse:
 
 Se recalcula tras cada escaneo, asi que el board siempre suma el agujero real.
 `/shapeboard untracked <id> off` lo quita.
+
+**Picar hasta una Y objetivo.** Capa por capa es `/shapeboard layer`, y todo lo
+que hay por encima de una profundidad de golpe es `/shapeboard down`. Suma cada
+bloque que sigue en pie desde el techo del escaneo hasta esa Y, que es la
+pregunta que se hace de verdad ("¿cuánto falta para dejarlo limpio hasta y-20?"):
+
+```
+/shapeboard down -20 bigculo
+```
+
+```
+— Big Culo · down to y-20 —
+███████░░░░░░░░░░░░░ 38.60%
+Down to y-20: 210,455 / 545,180 blocks cleared, 334,725 remaining
+Layers: 43 of 96 cleared from y99 down to y-20, highest one left is y41.
+```
+
+Los dos leen del último escaneo, así que responden al instante y no cuestan nada.
 
 **Coste.** El escaneo corre en un hilo aparte y lee los chunks directamente del
 almacenamiento, así que el servidor sigue tickeando. Una zona de 4.096 columnas
