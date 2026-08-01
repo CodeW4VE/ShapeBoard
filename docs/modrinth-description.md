@@ -59,6 +59,8 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
    /shapeboard metric bigculo break    # digs (default)
    /shapeboard metric bigculo place    # builds and decoration
    /shapeboard metric bigculo both     # the sum
+
+   Digging a place first and building it later? Both counters run all along, so leave it on `break` for the dig phase and flip it to `place` on building day. Any player can watch the other one whenever they want with `/shapeboard view place`, and `/shapeboard suffix <id> auto` makes the sidebar title say **Dig** or **Build** so nobody has to guess which board they are looking at.
    ```
 
    Building a project rather than digging one? Run the `place` line, or the board will sit at zero while everyone works.
@@ -67,7 +69,7 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 
    ```
    [ShapeBoard] You entered Big Culo. Blocks you mine or place here count toward the leaderboard.
-   [ShapeBoard] Sidebar enabled. Run /shapeboard hide to hide it.
+   [ShapeBoard] Run /shapeboard hide to hide the sidebar, /shapeboard quiet to mute these messages.
    ```
 
    with a live top 15 sidebar. If they are not in the top 15 but have a score, their own line is shown in the last slot so they always see where they stand.
@@ -86,6 +88,10 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard info <id>` | all | Details of one shape |
 | `/shapeboard top [id]` | all | Top 10 + totals in chat |
 | `/shapeboard hide` / `show` | all | Per-player sidebar toggle, remembered across sessions |
+| `/shapeboard view <break\|place\|both\|reset>` | all | What **your** sidebar ranks by, whatever the zone is set to. `reset` follows the zone again |
+| `/shapeboard quiet [on\|off]` | all | Mute the entered/left chat lines. The sidebar keeps working |
+| `/shapeboard suffix <id> <word\|auto\|off>` | OP | Word after the display name on the sidebar title. `auto` turns into Dig / Build / Both, following what is being ranked |
+| `/shapeboard prefix <id> <word\|off>` | OP | Word before the display name |
 | `/shapeboard contains <id> <x> <z>` | OP | Debug: is this column inside the shape? |
 
 ## How it works
