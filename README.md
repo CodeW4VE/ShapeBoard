@@ -100,6 +100,7 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard scan <id>` | OP | Count the blocks still standing inside the shape (see [Dig progress](#dig-progress)) |
 | `/shapeboard progress [id]` | all | Progress bar and remaining block count from the last scan |
 | `/shapeboard layer [y] [id]` | all | One Y layer, measured against what that layer started with |
+| `/shapeboard down <y> [id]` | all | Everything still standing from the top of the scan down to that Y: how much is left before the shape is clear to y |
 | `/shapeboard blocks [id]` | all | Every block type still standing, best first (what you will be hauling out) |
 | `/shapeboard range <id> <ymin> <ymax>` | OP | Y slice the scan covers (default: above the bedrock floor, up to the marker Y) |
 | `/shapeboard baseline <id> <blocks>\|fromscan` | OP | How many blocks were there before digging started. `fromscan` freezes the last scan, `0` = use the raw volume |
@@ -180,6 +181,24 @@ measured. Point a fake name at the difference and it stops getting lost:
 
 It is recalculated after every scan, so the board always adds up to the real
 hole. `/shapeboard untracked <id> off` removes it.
+
+**Digging to a target Y.** Layer by layer is `/shapeboard layer`, and everything
+above a target depth at once is `/shapeboard down`. It adds up every block still
+standing from the top of the scan down to that Y, which is the question crews
+actually ask ("how much before we are clear to y-20?"):
+
+```
+/shapeboard down -20 bigculo
+```
+
+```
+— Big Culo · down to y-20 —
+███████░░░░░░░░░░░░░ 38.60%
+Down to y-20: 210,455 / 545,180 blocks cleared, 334,725 remaining
+Layers: 43 of 96 cleared from y99 down to y-20, highest one left is y41.
+```
+
+Both read from the last scan, so they answer instantly and cost nothing.
 
 **Cost.** The scan runs on a worker thread and reads chunk data straight from
 storage, so the server keeps ticking. A 4,096 column zone takes ~50 ms; a
