@@ -28,6 +28,9 @@ public final class ShapeStore {
 
 	private final List<Shape> shapes = new CopyOnWriteArrayList<>();
 	private final Set<UUID> hidden = new HashSet<>();
+	private final Set<UUID> quiet = new HashSet<>();
+	/** uuid -> metric the player chose to look at; absent means "the shape's own". */
+	private final Map<UUID, String> views = new HashMap<>();
 
 	public List<Shape> all() {
 		return shapes;
@@ -65,6 +68,31 @@ public final class ShapeStore {
 		else hidden.remove(uuid);
 	}
 
+	public boolean isQuiet(UUID uuid) {
+		return quiet.contains(uuid);
+	}
+
+	public void setQuiet(UUID uuid, boolean value) {
+		if (value) quiet.add(uuid);
+		else quiet.remove(uuid);
+	}
+
+	/** The metric this player chose to watch, or null when following the shape. */
+	public String view(UUID uuid) {
+		return views.get(uuid);
+	}
+
+	public void setView(UUID uuid, String metric) {
+		if (metric == null) views.remove(uuid);
+		else views.put(uuid, metric);
+	}
+
+	/** What a given player actually sees on a shape: their own view or its metric. */
+	public String viewFor(UUID uuid, Shape shape) {
+		String v = views.get(uuid);
+		return v != null ? v : shape.metric;
+	}
+
 	private static Path dir(MinecraftServer server) {
 		return server.getWorldPath(LevelResource.ROOT).resolve("shapeboard");
 	}
@@ -72,6 +100,8 @@ public final class ShapeStore {
 	public void load(MinecraftServer server) {
 		shapes.clear();
 		hidden.clear();
+		quiet.clear();
+		views.clear();
 		Path dir = dir(server);
 		try {
 			Path shapesFile = dir.resolve("shapes.json");
@@ -85,6 +115,20 @@ public final class ShapeStore {
 			if (Files.exists(hiddenFile)) {
 				for (JsonElement el : JsonParser.parseString(Files.readString(hiddenFile)).getAsJsonArray()) {
 					hidden.add(UUID.fromString(el.getAsString()));
+				}
+			}
+			Path prefsFile = dir.resolve("prefs.json");
+			if (Files.exists(prefsFile)) {
+				JsonObject prefs = JsonParser.parseString(Files.readString(prefsFile)).getAsJsonObject();
+				if (prefs.has("quiet")) {
+					for (JsonElement el : prefs.getAsJsonArray("quiet")) {
+						quiet.add(UUID.fromString(el.getAsString()));
+					}
+				}
+				if (prefs.has("views")) {
+					for (Map.Entry<String, JsonElement> e : prefs.getAsJsonObject("views").entrySet()) {
+						views.put(UUID.fromString(e.getKey()), e.getValue().getAsString());
+					}
 				}
 			}
 			ShapeBoard.LOGGER.info("Loaded {} shape(s)", shapes.size());
@@ -110,6 +154,19 @@ public final class ShapeStore {
 				hid.add(u.toString());
 			}
 			Files.writeString(dir.resolve("hidden.json"), GSON.toJson(hid));
+
+			JsonObject prefs = new JsonObject();
+			JsonArray quietArr = new JsonArray();
+			for (UUID u : quiet) {
+				quietArr.add(u.toString());
+			}
+			prefs.add("quiet", quietArr);
+			JsonObject viewsObj = new JsonObject();
+			for (Map.Entry<UUID, String> e : views.entrySet()) {
+				viewsObj.addProperty(e.getKey().toString(), e.getValue());
+			}
+			prefs.add("views", viewsObj);
+			Files.writeString(dir.resolve("prefs.json"), GSON.toJson(prefs));
 		} catch (IOException e) {
 			ShapeBoard.LOGGER.error("Failed to save shapeboard data", e);
 		}
@@ -121,6 +178,8 @@ public final class ShapeStore {
 		o.addProperty("name", s.displayName);
 		o.addProperty("metric", s.metric);
 		o.addProperty("showTotal", s.showTotal);
+		if (s.titlePrefix != null) o.addProperty("titlePrefix", s.titlePrefix);
+		if (s.titleSuffix != null) o.addProperty("titleSuffix", s.titleSuffix);
 		if (s.yMinScan != null) o.addProperty("scanYMin", s.yMinScan);
 		if (s.yMaxScan != null) o.addProperty("scanYMax", s.yMaxScan);
 		if (s.baselineSolids > 0) o.addProperty("baselineSolids", s.baselineSolids);
@@ -176,6 +235,8 @@ public final class ShapeStore {
 				cols);
 		if (o.has("metric")) s.metric = o.get("metric").getAsString();
 		if (o.has("showTotal")) s.showTotal = o.get("showTotal").getAsBoolean();
+		if (o.has("titlePrefix")) s.titlePrefix = o.get("titlePrefix").getAsString();
+		if (o.has("titleSuffix")) s.titleSuffix = o.get("titleSuffix").getAsString();
 		if (o.has("scanYMin")) s.yMinScan = o.get("scanYMin").getAsInt();
 		if (o.has("scanYMax")) s.yMaxScan = o.get("scanYMax").getAsInt();
 		if (o.has("baselineSolids")) s.baselineSolids = o.get("baselineSolids").getAsLong();

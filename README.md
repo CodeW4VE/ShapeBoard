@@ -65,12 +65,16 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 
    Building a project rather than digging one? Run the `place` line, or the board will sit at zero while everyone works.
 
+   Digging a place first and building it later? Leave `metric` on `break` for the dig phase, flip it to `place` on the day the building starts. Both counters ran all along, so nothing is lost, and anyone can watch the other one at any time with `/shapeboard view` (see [Two boards, one zone](#two-boards-one-zone)).
+
 5. **That is it.** From now on, everything mined or placed inside the shape and below the marker line counts into the vanilla scoreboard objectives `bigculo_break` and `bigculo_place`. Anyone who walks in gets:
 
    ```
    [ShapeBoard] You entered Big Culo. Blocks you mine or place here count toward the leaderboard.
-   [ShapeBoard] Sidebar enabled. Run /shapeboard hide to hide it.
+   [ShapeBoard] Run /shapeboard hide to hide the sidebar, /shapeboard quiet to mute these messages.
    ```
+
+   Those two lines are shown once, not on every crossing: the same zone stays quiet for 15 minutes afterwards, and `/shapeboard quiet` mutes them for good.
 
    with a live top 15 sidebar. If they are not in the top 15 but have a score, their own line is shown in the last slot so they always see where they stand.
 
@@ -88,6 +92,10 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard info <id>` | all | Details of one shape |
 | `/shapeboard top [id]` | all | Top 10 + totals in chat |
 | `/shapeboard hide` / `show` | all | Per-player sidebar toggle, remembered across sessions |
+| `/shapeboard view <break\|place\|both\|reset>` | all | What **your** sidebar ranks by, whatever the zone is set to. `reset` follows the zone again |
+| `/shapeboard quiet [on\|off]` | all | Mute the entered/left chat lines. The sidebar keeps working. No argument toggles it |
+| `/shapeboard suffix <id> <word\|auto\|off>` | OP | Word after the display name on the sidebar title. `auto` turns into Dig / Build / Both, following what is being ranked |
+| `/shapeboard prefix <id> <word\|off>` | OP | Word before the display name |
 | `/shapeboard contains <id> <x> <z>` | OP | Debug: is this column inside the shape? |
 | `/shapeboard scan <id>` | OP | Count the blocks still standing inside the shape (see [Dig progress](#dig-progress)) |
 | `/shapeboard progress [id]` | all | Progress bar and remaining block count from the last scan |
@@ -96,6 +104,36 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard range <id> <ymin> <ymax>` | OP | Y slice the scan covers (default: above the bedrock floor, up to the marker Y) |
 | `/shapeboard baseline <id> <blocks>\|fromscan` | OP | How many blocks were there before digging started. `fromscan` freezes the last scan, `0` = use the raw volume |
 | `/shapeboard untracked <id> <name>` | OP | Hold the digs nobody was credited for (pre-shape digs, explosions, world edits) under a fake name, resynced after every scan. `off` removes it |
+
+## Two boards, one zone
+
+A zone that gets dug out first and built up later needs two leaderboards in the
+same place. It already has them: **breaks and placements are always counted into
+two separate objectives**, `<id>_break` and `<id>_place`. The `metric` only picks
+which one the sidebar shows, so nothing has to be duplicated and there is no
+second shape to create (overlapping shapes would not work anyway: a column
+belongs to the first shape that contains it).
+
+```
+/shapeboard metric virusia break     # dig phase, everyone sees the digs
+/shapeboard metric virusia place     # building day, one command, same zone
+
+/shapeboard view place               # any player, any time, just for them
+/shapeboard view reset               # back to whatever the zone shows
+```
+
+`view` is per player and remembered across sessions, so a builder can watch the
+placements while the diggers keep their own board. To make it obvious which one
+you are looking at, give the shape an auto suffix:
+
+```
+/shapeboard rename virusia Virusia
+/shapeboard suffix virusia auto
+```
+
+The sidebar title then reads **Virusia Dig**, **Virusia Build** or **Virusia
+Both**, following whatever that viewer is ranking by. A fixed word works too
+(`/shapeboard suffix virusia Build`), and `/shapeboard prefix` puts one in front.
 
 ## Dig progress
 

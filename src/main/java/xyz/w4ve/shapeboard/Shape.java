@@ -20,6 +20,15 @@ public final class Shape {
 	public String metric = "break";
 	/** show a "Total" line (sum of everyone) at the top of the sidebar */
 	public boolean showTotal = true;
+	/** Optional word glued before the display name on the sidebar title. */
+	public String titlePrefix = null;
+	/**
+	 * Optional word glued after the display name. The special value
+	 * {@link #SUFFIX_AUTO} turns it into whatever is being ranked right now
+	 * ("Dig", "Build" or "Both"), which follows each viewer's own view.
+	 */
+	public String titleSuffix = null;
+	public static final String SUFFIX_AUTO = "auto";
 
 	/** Y range the volume scan looks at; null means "world bottom .. yLines - 1". */
 	public Integer yMinScan = null;
@@ -135,5 +144,36 @@ public final class Shape {
 
 	public boolean countsPlaces() {
 		return !metric.equals("break");
+	}
+
+	public static boolean countsBreaks(String metric) {
+		return !metric.equals("place");
+	}
+
+	public static boolean countsPlaces(String metric) {
+		return !metric.equals("break");
+	}
+
+	/** Word the auto suffix resolves to for a given metric. */
+	public static String autoWord(String metric) {
+		return switch (metric) {
+			case "place" -> "Build";
+			case "both" -> "Both";
+			default -> "Dig";
+		};
+	}
+
+	/**
+	 * Sidebar title for a viewer looking at {@code metric}: display name with
+	 * the optional prefix/suffix around it.
+	 */
+	public String title(String viewMetric) {
+		StringBuilder sb = new StringBuilder();
+		if (titlePrefix != null) sb.append(titlePrefix).append(' ');
+		sb.append(displayName);
+		if (titleSuffix != null) {
+			sb.append(' ').append(titleSuffix.equals(SUFFIX_AUTO) ? autoWord(viewMetric) : titleSuffix);
+		}
+		return sb.toString();
 	}
 }
