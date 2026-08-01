@@ -65,14 +65,18 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 
    ¿Estás construyendo en vez de picando? Pon la línea de `place` o la tabla se va a quedar a cero mientras todos trabajan.
 
+   ¿Un sitio que primero se cava y luego se construye? Deja `metric` en `break` durante la fase de picado y pásalo a `place` el día que empiece la construcción. Los dos contadores han estado corriendo desde el principio, así que no se pierde nada, y cualquiera puede mirar el otro cuando quiera con `/shapeboard view` (ver [Dos tablas, una zona](#dos-tablas-una-zona)).
+
 5. **Ya está.** Desde ese momento, todo lo que se pique o coloque dentro de la forma y por debajo de la línea marcadora cuenta en los objetivos vanilla de scoreboard `bigculo_break` y `bigculo_place`. A quien entre le sale:
 
    ```
    [ShapeBoard] You entered Big Culo. Blocks you mine or place here count toward the leaderboard.
-   [ShapeBoard] Sidebar enabled. Run /shapeboard hide to hide it.
+   [ShapeBoard] Run /shapeboard hide to hide the sidebar, /shapeboard quiet to mute these messages.
    ```
 
    con un sidebar top 15 en vivo. Si no están en el top 15 pero tienen score, su propia línea se muestra en el último hueco para que siempre sepan por dónde van.
+
+   Esas dos líneas salen una vez, no cada vez que cruzas el borde: la misma zona se calla durante 15 minutos después, y `/shapeboard quiet` las silencia para siempre.
 
 ## Comandos
 
@@ -88,6 +92,10 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | `/shapeboard info <id>` | todos | Detalles de una shape |
 | `/shapeboard top [id]` | todos | Top 10 + totales en el chat |
 | `/shapeboard hide` / `show` | todos | Toggle del sidebar por jugador, se recuerda entre sesiones |
+| `/shapeboard view <break\|place\|both\|reset>` | todos | Por qué ordena **tu** sidebar, sin importar lo que tenga la zona. `reset` vuelve a seguir a la zona |
+| `/shapeboard quiet [on\|off]` | todos | Silencia los mensajes de entrada/salida. El sidebar sigue funcionando. Sin argumento hace toggle |
+| `/shapeboard suffix <id> <palabra\|auto\|off>` | OP | Palabra detrás del nombre en el título del sidebar. `auto` se convierte en Dig / Build / Both según lo que se esté rankeando |
+| `/shapeboard prefix <id> <palabra\|off>` | OP | Palabra delante del nombre |
 | `/shapeboard contains <id> <x> <z>` | OP | Debug: ¿esta columna está dentro de la forma? |
 | `/shapeboard scan <id>` | OP | Cuenta los bloques que siguen en pie dentro de la forma (ver [Progreso de excavación](#progreso-de-excavación)) |
 | `/shapeboard progress [id]` | todos | Barra de progreso y bloques restantes del último escaneo |
@@ -96,6 +104,36 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | `/shapeboard range <id> <ymin> <ymax>` | OP | Franja de Y que cubre el escaneo (por defecto: del fondo del mundo hasta la Y del contorno) |
 | `/shapeboard baseline <id> <bloques>\|fromscan` | OP | Cuántos bloques había antes de empezar a picar. `fromscan` congela el último escaneo, `0` = usar el volumen bruto |
 | `/shapeboard untracked <id> <nombre>` | OP | Guarda bajo un nombre falso los picados que no se le acreditaron a nadie (lo picado antes de crear la shape, explosiones, world edits); se resincroniza tras cada escaneo. `off` lo quita |
+
+## Dos tablas, una zona
+
+Una zona que primero se excava y luego se construye necesita dos tablas en el
+mismo sitio. Ya las tiene: **las roturas y las colocaciones siempre se cuentan en
+dos objetivos separados**, `<id>_break` y `<id>_place`. El `metric` solo elige
+cuál enseña el sidebar, así que no hay que duplicar nada ni crear una segunda
+shape (dos shapes solapadas no funcionarían de todos modos: una columna
+pertenece a la primera shape que la contiene).
+
+```
+/shapeboard metric virusia break     # fase de picado, todos ven los digs
+/shapeboard metric virusia place     # día de construir, un comando, misma zona
+
+/shapeboard view place               # cualquier jugador, cuando quiera, solo para él
+/shapeboard view reset               # de vuelta a lo que muestre la zona
+```
+
+`view` es por jugador y se recuerda entre sesiones, así que quien construye puede
+mirar las colocaciones mientras los que pican mantienen su tabla. Para que se vea
+de un vistazo cuál estás mirando, ponle a la shape un sufijo automático:
+
+```
+/shapeboard rename virusia Virusia
+/shapeboard suffix virusia auto
+```
+
+El título del sidebar pasa a ser **Virusia Dig**, **Virusia Build** o **Virusia
+Both**, según lo que esté rankeando quien lo mira. También vale una palabra fija
+(`/shapeboard suffix virusia Build`), y `/shapeboard prefix` pone una delante.
 
 ## Progreso de excavación
 
