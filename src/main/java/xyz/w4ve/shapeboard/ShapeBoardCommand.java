@@ -40,6 +40,11 @@ public final class ShapeBoardCommand {
 			SharedSuggestionProvider.suggest(METRIC_VALUES, builder);
 	private static final SuggestionProvider<CommandSourceStack> ON_OFF = (ctx, builder) ->
 			SharedSuggestionProvider.suggest(List.of("on", "off"), builder);
+	private static final List<String> VIEW_VALUES = List.of("break", "place", "both", "reset");
+	private static final SuggestionProvider<CommandSourceStack> VIEWS = (ctx, builder) ->
+			SharedSuggestionProvider.suggest(VIEW_VALUES, builder);
+	private static final SuggestionProvider<CommandSourceStack> SUFFIXES = (ctx, builder) ->
+			SharedSuggestionProvider.suggest(List.of(Shape.SUFFIX_AUTO, "Dig", "Build", "off"), builder);
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(Commands.literal("shapeboard")
@@ -122,7 +127,29 @@ public final class ShapeBoardCommand {
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 								.executes(ctx -> top(ctx, StringArgumentType.getString(ctx, "id")))))
 				.then(Commands.literal("hide").executes(ctx -> setHidden(ctx, true)))
-				.then(Commands.literal("show").executes(ctx -> setHidden(ctx, false))));
+				.then(Commands.literal("show").executes(ctx -> setHidden(ctx, false)))
+				.then(Commands.literal("view")
+						.then(Commands.argument("value", StringArgumentType.word()).suggests(VIEWS)
+								.executes(ctx -> {
+									String v = StringArgumentType.getString(ctx, "value").toLowerCase();
+									if (!VIEW_VALUES.contains(v)) {
+										ctx.getSource().sendFailure(
+												Component.literal("Use: break, place, both or reset"));
+										return 0;
+									}
+									return view(ctx, v);
+								})))
+				.then(Commands.literal("quiet").executes(ctx -> quiet(ctx, null))
+						.then(Commands.literal("on").executes(ctx -> quiet(ctx, true)))
+						.then(Commands.literal("off").executes(ctx -> quiet(ctx, false))))
+				.then(Commands.literal("suffix").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.then(Commands.argument("value", StringArgumentType.greedyString()).suggests(SUFFIXES)
+										.executes(ctx -> affix(ctx, true)))))
+				.then(Commands.literal("prefix").requires(s -> s.hasPermission(2))
+						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+								.then(Commands.argument("value", StringArgumentType.greedyString())
+										.executes(ctx -> affix(ctx, false))))));
 	}
 
 	/** Shared id validation for create/createbox. */
@@ -707,6 +734,7 @@ public final class ShapeBoardCommand {
 				.append(Component.literal(s.id + " \"" + s.displayName + "\": " + String.format("%,d", s.area())
 						+ " columns inside, bounds x[" + s.xMin + ".." + s.xMax + "] z[" + s.zMin + ".." + s.zMax
 						+ "], counts below y" + s.yLines + " in " + s.dimension + ", ranks by " + s.metric
+						+ ", sidebar title \"" + s.title(s.metric) + "\""
 						+ ". Objectives: " + s.breakObjective() + " / " + s.placeObjective())
 						.withStyle(ChatFormatting.WHITE)), false);
 		return 1;
@@ -793,6 +821,88 @@ public final class ShapeBoardCommand {
 			player.sendSystemMessage(ShapeBoard.prefix()
 					.append(Component.literal("Sidebar enabled.").withStyle(ChatFormatting.GRAY)));
 		}
+		return 1;
+	}
+
+	/** Per-player choice of what the sidebar ranks by, independent of the shape's own metric. */
+	private static int view(CommandContext<CommandSourceStack> ctx, String value) {
+		CommandSourceStack source = ctx.getSource();
+		ServerPlayer player;
+		try {
+			player = source.getPlayerOrException();
+		} catch (CommandSyntaxException e) {
+			source.sendFailure(Component.literal("Players only"));
+			return 0;
+		}
+		ShapeBoard mod = ShapeBoard.INSTANCE;
+		boolean reset = value.equals("reset");
+		mod.store.setView(player.getUUID(), reset ? null : value);
+		mod.store.save(source.getServer());
+		mod.sidebar.refreshNow(player);
+
+		Shape here = mod.currentShape(player);
+		String effective = here != null ? mod.store.viewFor(player.getUUID(), here) : value;
+		String what = switch (effective) {
+			case "place" -> "blocks placed";
+			case "both" -> "blocks broken + placed";
+			default -> "blocks broken";
+		};
+		player.sendSystemMessage(ShapeBoard.prefix().append(Component.literal(reset
+				? "Your sidebar follows each zone again (now: " + what + ")."
+				: "Your sidebar now ranks by " + what + " everywhere.").withStyle(ChatFormatting.GREEN)));
+		return 1;
+	}
+
+	/** Mutes the enter/leave chat lines without touching the sidebar. */
+	private static int quiet(CommandContext<CommandSourceStack> ctx, Boolean value) {
+		CommandSourceStack source = ctx.getSource();
+		ServerPlayer player;
+		try {
+			player = source.getPlayerOrException();
+		} catch (CommandSyntaxException e) {
+			source.sendFailure(Component.literal("Players only"));
+			return 0;
+		}
+		ShapeBoard mod = ShapeBoard.INSTANCE;
+		boolean on = value != null ? value : !mod.store.isQuiet(player.getUUID());
+		mod.store.setQuiet(player.getUUID(), on);
+		mod.store.save(source.getServer());
+		player.sendSystemMessage(ShapeBoard.prefix().append(on
+				? Component.literal("Zone messages muted. The sidebar still works. Run ")
+						.withStyle(ChatFormatting.GRAY)
+						.append(ShapeBoard.command("/shapeboard quiet off"))
+						.append(Component.literal(" to get them back.").withStyle(ChatFormatting.GRAY))
+				: Component.literal("Zone messages back on.").withStyle(ChatFormatting.GRAY)));
+		return 1;
+	}
+
+	/** Word glued before or after the display name on the sidebar title. */
+	private static int affix(CommandContext<CommandSourceStack> ctx, boolean isSuffix) {
+		Shape shape = ShapeBoard.INSTANCE.store.byId(StringArgumentType.getString(ctx, "id"));
+		if (shape == null) return unknownShape(ctx);
+		String value = StringArgumentType.getString(ctx, "value").trim();
+		boolean off = value.equalsIgnoreCase("off") || value.equalsIgnoreCase("none");
+		if (!off && value.length() > 24) {
+			ctx.getSource().sendFailure(Component.literal("Keep it under 24 characters"));
+			return 0;
+		}
+		String stored = off ? null : value;
+		if (isSuffix) shape.titleSuffix = stored;
+		else shape.titlePrefix = stored;
+		ShapeBoard.INSTANCE.store.save(ctx.getSource().getServer());
+		// Titles are per viewer, so nudge everyone currently looking at it.
+		for (ServerPlayer p : ctx.getSource().getServer().getPlayerList().getPlayers()) {
+			ShapeBoard.INSTANCE.sidebar.retitleIfViewing(p, shape);
+		}
+		String where = isSuffix ? "Suffix" : "Prefix";
+		String msg = off
+				? where + " removed from '" + shape.id + "'. Title: \"" + shape.title(shape.metric) + "\""
+				: value.equals(Shape.SUFFIX_AUTO) && isSuffix
+						? "Suffix of '" + shape.id + "' follows what is ranked (Dig / Build / Both). Title now: \""
+								+ shape.title(shape.metric) + "\""
+						: where + " of '" + shape.id + "' set. Title now: \"" + shape.title(shape.metric) + "\"";
+		ctx.getSource().sendSuccess(() -> ShapeBoard.prefix()
+				.append(Component.literal(msg).withStyle(ChatFormatting.GREEN)), true);
 		return 1;
 	}
 

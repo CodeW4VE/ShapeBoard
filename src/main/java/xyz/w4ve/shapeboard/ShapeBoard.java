@@ -27,8 +27,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -47,6 +49,13 @@ public class ShapeBoard implements ModInitializer {
 	private final Map<UUID, String> insideShape = new HashMap<>();
 	private int tickCounter;
 
+	/** Do not repeat the enter/leave lines for the same shape within this window. */
+	public static final long NOTICE_COOLDOWN_MS = 15 * 60 * 1000L;
+	/** uuid + shape -> when we last talked to that player about it. */
+	private final Map<String, Long> lastNotice = new HashMap<>();
+	/** Players whose entry was announced, so the matching exit line is allowed. */
+	private final Set<String> announced = new HashSet<>();
+
 	@Override
 	public void onInitialize() {
 		INSTANCE = this;
@@ -63,6 +72,7 @@ public class ShapeBoard implements ModInitializer {
 
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, srv) -> {
 			insideShape.remove(handler.player.getUUID());
+			announced.removeIf(k -> k.startsWith(handler.player.getUUID() + "/"));
 			sidebar.forget(handler.player.getUUID());
 		});
 
@@ -79,10 +89,9 @@ public class ShapeBoard implements ModInitializer {
 		if (shape == null || pos.getY() >= shape.yLines) return;
 		Objective obj = getOrCreateObjective(shape, isBreak);
 		server.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly(player.getScoreboardName()), obj).add(1);
-		// push instantly to viewers, but only if this kind feeds the shape's metric
-		if (isBreak ? shape.countsBreaks() : shape.countsPlaces()) {
-			sidebar.onScoreChange(server, store, shape.id);
-		}
+		// Push instantly to viewers. Both kinds are pushed because a viewer may
+		// be watching the other metric; the refresh only sends actual diffs.
+		sidebar.onScoreChange(server, store, shape.id);
 	}
 
 	public Objective getOrCreateObjective(Shape shape, boolean isBreak) {
@@ -117,32 +126,56 @@ public class ShapeBoard implements ModInitializer {
 
 	private void onEnter(ServerPlayer player, Shape shape) {
 		if (isFakePlayer(player)) return;
+		boolean hidden = store.isHidden(player.getUUID());
+		if (!hidden) sidebar.show(player, shape);
+
+		// The sidebar always follows the player; the chat lines do not. Crossing
+		// the border of a big zone happens a lot, so they are muted per player
+		// and rate limited per shape.
+		String key = noticeKey(player, shape);
+		long now = System.currentTimeMillis();
+		Long last = lastNotice.get(key);
+		if (store.isQuiet(player.getUUID()) || (last != null && now - last < NOTICE_COOLDOWN_MS)) return;
+		boolean firstTime = last == null;
+		lastNotice.put(key, now);
+		announced.add(key);
+
 		player.sendSystemMessage(prefix()
 				.append(Component.literal("You entered ").withStyle(ChatFormatting.WHITE))
 				.append(Component.literal(shape.displayName).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD))
 				.append(Component.literal(". Blocks you mine or place here count toward the leaderboard.")
 						.withStyle(ChatFormatting.WHITE)));
-		if (store.isHidden(player.getUUID())) {
+		// The tips are only worth showing once, not on every single crossing.
+		if (!firstTime) return;
+		if (hidden) {
 			player.sendSystemMessage(prefix()
 					.append(Component.literal("Sidebar is off. Run ").withStyle(ChatFormatting.GRAY))
 					.append(command("/shapeboard show"))
 					.append(Component.literal(" to see the leaderboard.").withStyle(ChatFormatting.GRAY)));
 		} else {
-			sidebar.show(player, shape);
 			player.sendSystemMessage(prefix()
-					.append(Component.literal("Sidebar enabled. Run ").withStyle(ChatFormatting.GRAY))
+					.append(Component.literal("Run ").withStyle(ChatFormatting.GRAY))
 					.append(command("/shapeboard hide"))
-					.append(Component.literal(" to hide it.").withStyle(ChatFormatting.GRAY)));
+					.append(Component.literal(" to hide the sidebar, ").withStyle(ChatFormatting.GRAY))
+					.append(command("/shapeboard quiet"))
+					.append(Component.literal(" to mute these messages.").withStyle(ChatFormatting.GRAY)));
 		}
 	}
 
 	private void onExit(ServerPlayer player, Shape shape) {
 		if (isFakePlayer(player)) return;
 		sidebar.hide(player);
-		if (shape != null) {
-			player.sendSystemMessage(prefix()
-					.append(Component.literal("You left " + shape.displayName + ".").withStyle(ChatFormatting.GRAY)));
-		}
+		if (shape == null) return;
+		String key = noticeKey(player, shape);
+		// Only say goodbye if the matching hello was actually said.
+		if (!announced.remove(key)) return;
+		lastNotice.put(key, System.currentTimeMillis());
+		player.sendSystemMessage(prefix()
+				.append(Component.literal("You left " + shape.displayName + ".").withStyle(ChatFormatting.GRAY)));
+	}
+
+	private static String noticeKey(ServerPlayer player, Shape shape) {
+		return player.getUUID() + "/" + shape.id;
 	}
 
 	/** Shape the player is standing in right now (or null). */
