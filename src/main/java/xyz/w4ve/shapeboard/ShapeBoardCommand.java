@@ -92,6 +92,12 @@ public final class ShapeBoardCommand {
 								.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
 										.executes(ctx -> layer(ctx, StringArgumentType.getString(ctx, "id"),
 												IntegerArgumentType.getInteger(ctx, "y"))))))
+				.then(Commands.literal("down")
+						.then(Commands.argument("y", IntegerArgumentType.integer(-64, 320))
+								.executes(ctx -> down(ctx, null, IntegerArgumentType.getInteger(ctx, "y")))
+								.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
+										.executes(ctx -> down(ctx, StringArgumentType.getString(ctx, "id"),
+												IntegerArgumentType.getInteger(ctx, "y"))))))
 				.then(Commands.literal("blocks")
 						.executes(ctx -> blocks(ctx, null))
 						.then(Commands.argument("id", StringArgumentType.word()).suggests(SHAPE_IDS)
@@ -500,6 +506,69 @@ public final class ShapeBoardCommand {
 				: "A full layer of this shape is " + String.format("%,d", shape.area()) + " blocks";
 		source.sendSuccess(() -> Component.literal(area + ". " + layerSummary(shape, snap))
 				.withStyle(ChatFormatting.DARK_GRAY), false);
+		return 1;
+	}
+
+	/**
+	 * Everything still standing from the top of the scan down to a target Y:
+	 * "how much is left before this shape is clear down to yX". Same numbers
+	 * as {@link #layer}, added up over the layers at or above the target.
+	 */
+	private static int down(CommandContext<CommandSourceStack> ctx, String idArg, int target) {
+		CommandSourceStack source = ctx.getSource();
+		Shape shape = resolveShape(ctx, idArg, "down");
+		if (shape == null) return 0;
+		VolumeScanner.Snapshot snap = shape.lastScan;
+		if (snap == null) {
+			source.sendFailure(Component.literal("No volume scan yet for '" + shape.id
+					+ "'. Run /shapeboard scan " + shape.id + " first."));
+			return 0;
+		}
+		if (snap.perLayer() == null) {
+			source.sendFailure(Component.literal("The last scan of '" + shape.id
+					+ "' predates layer tracking. Run /shapeboard scan " + shape.id + " again."));
+			return 0;
+		}
+		if (target < snap.yMin() || target > snap.yMax()) {
+			source.sendFailure(Component.literal("y" + target + " is outside the scanned range (y"
+					+ snap.yMin() + ".." + snap.yMax() + ")"));
+			return 0;
+		}
+
+		long left = 0, start = 0;
+		int clearedLayers = 0, layersWithWork = 0, front = Integer.MIN_VALUE;
+		for (int y = target; y <= snap.yMax(); y++) {
+			long layerStart = shape.baselineLayer(y);
+			long layerLeft = snap.layer(y);
+			left += layerLeft;
+			start += layerStart;
+			if (layerStart <= 0) continue;     // layer was empty to begin with
+			layersWithWork++;
+			if (layerLeft == 0) clearedLayers++;
+			else front = Math.max(front, y);   // crews dig top down: this is what is next
+		}
+		final long fLeft = left, fStart = start, fCleared = Math.max(0, start - left);
+		final double frac = start <= 0 ? 1.0 : Math.max(0, Math.min(1.0, (double) fCleared / start));
+		final int fTarget = target, fClearedLayers = clearedLayers, fLayers = layersWithWork;
+		final int fFront = front;
+
+		source.sendSuccess(() -> Component.literal("— " + shape.displayName + " · down to y" + fTarget + " —")
+				.withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
+		source.sendSuccess(() -> Component.literal(VolumeScanner.bar(frac, 20) + " ")
+				.withStyle(ChatFormatting.GREEN)
+				.append(Component.literal(String.format("%.2f%%", frac * 100))
+						.withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)), false);
+		source.sendSuccess(() -> Component.literal("Down to y" + fTarget + ": ").withStyle(ChatFormatting.GRAY)
+				.append(Component.literal(String.format("%,d", fCleared)).withStyle(ChatFormatting.GREEN))
+				.append(Component.literal(" / " + String.format("%,d", fStart)
+						+ " blocks cleared, " + String.format("%,d", fLeft) + " remaining")
+						.withStyle(ChatFormatting.GRAY)), false);
+		source.sendSuccess(() -> Component.literal("Layers: " + fClearedLayers + " of " + fLayers
+				+ " cleared from y" + snap.yMax() + " down to y" + fTarget
+				+ (fFront != Integer.MIN_VALUE ? ", highest one left is y" + fFront : "") + ".")
+				.withStyle(ChatFormatting.DARK_GRAY), false);
+		source.sendSuccess(() -> Component.literal("Scanned: " + ago(snap.epochSeconds())
+				+ " (epoch " + snap.epochSeconds() + ")").withStyle(ChatFormatting.DARK_GRAY), false);
 		return 1;
 	}
 
