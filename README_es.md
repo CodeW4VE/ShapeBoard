@@ -20,9 +20,31 @@ El sidebar además es por jugador de verdad. Se manda con paquetes de scoreboard
 
 ## Instalación
 
-1. Server Fabric para Minecraft 1.21 con [Fabric API](https://modrinth.com/mod/fabric-api).
-2. Suelta `shapeboard-x.y.z+1.21.jar` en `mods/`.
+1. Server Fabric con [Fabric API](https://modrinth.com/mod/fabric-api), en cualquier Minecraft de 1.21 a 26.2.
+2. Suelta en `mods/` el jar de **tu** versión de Minecraft (la tabla de abajo dice cuál).
 3. Reinicia. Listo: no hay config que editar.
+
+### Qué jar
+
+Cada versión tiene su propio jar, compilado contra esa versión. El nombre siempre termina en la versión de Minecraft para la que es.
+
+| Minecraft | Jar | Java |
+| --- | --- | --- |
+| 1.21, 1.21.1 | `shapeboard-x.y.z+1.21.jar` | 21 |
+| 1.21.2 | `shapeboard-x.y.z+1.21.2.jar` | 21 |
+| 1.21.3 | `shapeboard-x.y.z+1.21.3.jar` | 21 |
+| 1.21.4 | `shapeboard-x.y.z+1.21.4.jar` | 21 |
+| 1.21.5 | `shapeboard-x.y.z+1.21.5.jar` | 21 |
+| 1.21.6 | `shapeboard-x.y.z+1.21.6.jar` | 21 |
+| 1.21.7 | `shapeboard-x.y.z+1.21.7.jar` | 21 |
+| 1.21.8 | `shapeboard-x.y.z+1.21.8.jar` | 21 |
+| 1.21.9 | `shapeboard-x.y.z+1.21.9.jar` | 21 |
+| 1.21.10 | `shapeboard-x.y.z+1.21.10.jar` | 21 |
+| 1.21.11 | `shapeboard-x.y.z+1.21.11.jar` | 21 |
+| 26.1, 26.1.1, 26.1.2 | `shapeboard-x.y.z+26.1.2.jar` | 25 |
+| 26.2 | `shapeboard-x.y.z+26.2.jar` | 25 |
+
+Minecraft 26.1 en adelante pide Java 25: es requisito del juego, no del mod. El jar de una versión se niega a cargar en otra en vez de funcionar a medias.
 
 ## Inicio rápido
 
@@ -242,7 +264,17 @@ snapshot guardado.
 ./gradlew build
 ```
 
-El jar cae en `build/libs/`. Java 21+, Gradle descarga todo lo demás.
+El jar cae en `build/libs/`. Java 21+, Gradle descarga todo lo demás. Eso compila para 1.21, que es la versión contra la que está escrito el código.
+
+Para el resto de versiones de Minecraft:
+
+```
+python3 tools/multiversion.py            # todas, a build/multiversion/
+python3 tools/multiversion.py 26.2       # solo una
+python3 tools/multiversion.py 26.2 --errors   # solo compilar y listar todos los errores
+```
+
+Un solo código, sin una rama por versión: las diferencias entre releases de Minecraft son renombrados, y viven en una tabla de sustituciones al principio de `tools/multiversion.py`. La serie 26 además necesita otra toolchain, porque Minecraft dejó de publicarse ofuscado en 26.1 y ya no hay mappings que pedir, y ese build script se deriva de este en vez de vivir al lado. Compilar los jars de 26 en local pide un JDK 25 además del 21.
 
 ## Licencia
 

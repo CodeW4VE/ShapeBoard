@@ -88,7 +88,7 @@ public final class SidebarManager {
 		Objective fake = fakeObjective(null, "break");
 		player.connection.send(new ClientboundSetObjectivePacket(fake, ClientboundSetObjectivePacket.METHOD_REMOVE));
 		// give back the real global sidebar the mod was covering
-		Objective real = player.server.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
+		Objective real = player.level().getServer().getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
 		player.connection.send(new ClientboundSetDisplayObjectivePacket(DisplaySlot.SIDEBAR, real));
 	}
 
@@ -171,7 +171,7 @@ public final class SidebarManager {
 	 * them so they always see where they stand.
 	 */
 	private Map<String, Integer> buildLines(ServerPlayer player, Shape shape, String metric) {
-		Map<String, Integer> totals = metricTotals(player.server.getScoreboard(), shape, metric);
+		Map<String, Integer> totals = metricTotals(player.level().getServer().getScoreboard(), shape, metric);
 		Map<String, Integer> lines = new LinkedHashMap<>();
 		if (totals.isEmpty()) {
 			// A brand new shape has no scores at all, and an empty sidebar is

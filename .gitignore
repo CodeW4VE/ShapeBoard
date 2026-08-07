@@ -10,3 +10,6 @@ bin/
 
 # fabric
 run/
+
+# python
+__pycache__/
