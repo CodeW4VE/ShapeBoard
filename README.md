@@ -20,7 +20,7 @@ The sidebar is also per-player for real. It is sent with targeted scoreboard pac
 
 ## Install
 
-1. Fabric server with [Fabric API](https://modrinth.com/mod/fabric-api), on any Minecraft from 1.21 to 26.2.
+1. Fabric server with [Fabric API](https://modrinth.com/mod/fabric-api), on any Minecraft from 1.21 to 26.3.
 2. Drop the jar for **your** Minecraft version into `mods/` (the table below says which one).
 3. Restart. Done: there is no config file to edit.
 
@@ -43,8 +43,17 @@ Every version gets its own jar, compiled against that version. The name always e
 | 1.21.11 | `shapeboard-x.y.z+1.21.11.jar` | 21 |
 | 26.1, 26.1.1, 26.1.2 | `shapeboard-x.y.z+26.1.2.jar` | 25 |
 | 26.2 | `shapeboard-x.y.z+26.2.jar` | 25 |
+| 26.3 | `shapeboard-x.y.z+26.3.jar` | 25 |
 
 Minecraft 26.1 and up need Java 25: that is the game's requirement, not the mod's. The jar for a version will refuse to load on a different one rather than half work.
+
+Minecraft 26.3 requires Fabric Loader 0.19.5 or newer and Fabric API for 26.3.
+
+### Updating an existing world
+
+Stop the server cleanly and back up the world. Replace the old ShapeBoard jar with the jar for your target Minecraft version, update Fabric Loader and Fabric API as needed, then start the server again. Keep only one ShapeBoard jar in `mods/`.
+
+Existing shapes and totals are retained when you keep the same world. Shape definitions, scan snapshots, baselines and player preferences live in `world/shapeboard/`; individual break and placement scores live in the world's vanilla scoreboard data. Keep both when copying a world. Shapes do not need to be recreated or scanned again to resume counting. If `level-name` is customized, use that world directory instead of `world/`.
 
 ## Quick start
 

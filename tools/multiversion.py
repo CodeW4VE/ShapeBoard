@@ -52,6 +52,7 @@ TARGETS = {
     "1.21.11": "0.141.6+1.21.11",
     "26.1.2": "0.155.2+26.1.2",
     "26.2": "0.156.0+26.2",
+    "26.3": "0.161.0+26.3",
 }
 
 # Versions a shipped jar also runs on, so they are declared rather than built. 26.1 and 26.1.1
@@ -68,7 +69,7 @@ SKIP = {"1.21.1"}
 # Release order. Variant directories inherit forwards along it, so it has to be the real order
 # and not the order of the table above.
 ORDER = ["1.21", "1.21.1", "1.21.2", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.7", "1.21.8",
-         "1.21.9", "1.21.10", "1.21.11", "26.1.2", "26.2"]
+         "1.21.9", "1.21.10", "1.21.11", "26.1.2", "26.2", "26.3"]
 
 
 def unobfuscated(version):
@@ -125,10 +126,14 @@ SINCE_1_21_5 = [
     ('states.getList("palette", Tag.TAG_COMPOUND)', 'states.getListOrEmpty("palette")'),
     ('sections.getCompound(i)', 'sections.getCompoundOrEmpty(i)'),
     ('palette.getCompound(i)', 'palette.getCompoundOrEmpty(i)'),
+    ('palette.getCompound(index)', 'palette.getCompoundOrEmpty(index)'),
     ('section.getByte("Y")', 'section.getByteOr("Y", (byte) 0)'),
     ('section.contains("block_states", Tag.TAG_COMPOUND)', 'section.contains("block_states")'),
     ('section.getCompound("block_states")', 'section.getCompoundOrEmpty("block_states")'),
     ('.getString("Name")', '.getStringOr("Name", "")'),
+    ('.getString("id")', '.getStringOr("id", "")'),
+    ('.getString("")', '.getStringOr("", "")'),
+    ('text.getAsString()', 'text.asString().orElse("")'),
     # An absent long array used to read as a zero length one, and the caller checks for that on
     # the next line, so the empty array keeps the old meaning.
     ('states.getLongArray("data")', 'states.getLongArray("data").orElse(new long[0])'),
@@ -162,6 +167,7 @@ RULES = {
     "1.21.11": SINCE_1_21_11,
     "26.1.2": SINCE_26_1,
     "26.2": SINCE_26_1,
+    "26.3": SINCE_26_1,
 }
 
 
@@ -289,14 +295,25 @@ def build(version, api, errors_only=False):
             line = f"minecraft_version={version}"
         elif line.startswith("fabric_api_version="):
             line = f"fabric_api_version={api}"
+        elif version == "26.3" and line.startswith("loader_version="):
+            line = "loader_version=0.19.5"
 
         lines.append(line)
 
     properties.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    if version == "26.3":
+        wrapper = target / "gradle" / "wrapper" / "gradle-wrapper.properties"
+        wrapper.write_text(wrapper.read_text(encoding="utf-8")
+                           .replace("gradle-9.5.1-bin.zip", "gradle-9.6.0-bin.zip"),
+                           encoding="utf-8")
+
     manifest = target / "src" / "main" / "resources" / "fabric.mod.json"
     text = manifest.read_text(encoding="utf-8")
     text = re.sub(r'"minecraft": "[^"]*"', f'"minecraft": "{accepted_range(version)}"', text)
+
+    if version == "26.3":
+        text = re.sub(r'"fabricloader": "[^"]*"', '"fabricloader": ">=0.19.5"', text)
 
     # 26.x runs on Java 25 and nothing older, and its mixins are compiled to match.
     if unobfuscated(version):
@@ -336,10 +353,13 @@ def build(version, api, errors_only=False):
         env={**os.environ, "JAVA_HOME": str(jdk_for(version))})
 
     if result.returncode != 0:
+        log = target / "build-failure.log"
+        log.write_text(result.stdout + result.stderr, encoding="utf-8")
         errors = [line for line in (result.stdout + result.stderr).splitlines()
                   if "error:" in line]
         print(f"  {version}: FAILED, {len(errors)} errors")
         report(errors, target, limit=None if errors_only else 12)
+        print(f"     Full build output: {log}")
         return None
 
     if errors_only:

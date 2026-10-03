@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -222,7 +223,7 @@ public final class VolumeScanner {
 		boolean[] counts = new boolean[palette.size()];
 		boolean any = false;
 		for (int i = 0; i < palette.size(); i++) {
-			names[i] = palette.getCompound(i).getString("Name");
+			names[i] = paletteBlockId(palette, i);
 			counts[i] = mineable.contains(names[i]);
 			any |= counts[i];
 		}
@@ -266,6 +267,21 @@ public final class VolumeScanner {
 			}
 		}
 		return found;
+	}
+
+	/**
+	 * Old chunks store {Name, Properties}; 26.3 uses strings for default states
+	 * and {id, properties} for other states. A world can contain both formats
+	 * until every chunk has been loaded and saved by the new game version.
+	 */
+	private static String paletteBlockId(ListTag palette, int index) {
+		if (palette.get(index) instanceof StringTag text) return text.getAsString();
+		CompoundTag entry = palette.getCompound(index);
+		String name = entry.getString("Name");
+		if (name.isEmpty()) name = entry.getString("id");
+		// Raw heterogeneous NBT lists can wrap string entries in an unnamed tag.
+		if (name.isEmpty()) name = entry.getString("");
+		return name;
 	}
 
 	/** Chunk NBT straight from storage (pending writes included), or null. */
