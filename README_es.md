@@ -2,91 +2,49 @@
 
 *Read this in [English](README.md).*
 
-**Scoreboards para zonas de CUALQUIER forma, no solo cajas.** Delimita tu excavación, perímetro o zona de construcción con una línea de bloques en el cielo, corre un comando, y ShapeBoard cuenta cada bloque roto y colocado dentro de esa forma exacta. Cuando alguien entra, le aparece un sidebar con el leaderboard solo a él. Cuando sale, desaparece.
-
-100% server-side. Los jugadores no instalan nada.
-
-## Demo
+Scoreboards para zonas de cualquier forma. Marca una excavación o una obra con una línea de
+bloques en el cielo, corre un comando, y se cuenta cada bloque que se pica o se coloca dentro de
+esa forma exacta.
 
 ![Al salir de la zona el sidebar se quita, al volver a entrar vuelve, con los scores en vivo](docs/demo.gif)
 
-Video en calidad completa con sonido: [shapeboard-demo.mp4](https://github.com/CodeW4VE/ShapeBoard/releases/download/v1.0.1/shapeboard-demo.mp4)
+Video completo con sonido: [shapeboard-demo.mp4](https://github.com/CodeW4VE/ShapeBoard/releases/download/v1.0.1/shapeboard-demo.mp4)
 
-## Por qué
-
-Herramientas como buildevents solo soportan cajas rectangulares. Los proyectos reales no son rectángulos: los perímetros tienen esquinas redondeadas, ríos que quieres excluir, bultos raros. Si trackeas una caja alrededor de un perímetro redondo, la gente que pica fuera del proyecto también sube en tu leaderboard. ShapeBoard sigue el contorno exacto que dibujaste, así que el conteo es justo.
-
-El sidebar además es por jugador de verdad. Se manda con paquetes de scoreboard dirigidos, así que solo lo ve la gente que está dentro de la forma. No se tocan teams, no se cambian colores de team, y dos jugadores que compartan color de team no se filtran el board entre sí. Lo que sea que tu server haga con teams y colores queda intacto.
+- Vale cualquier contorno: esquinas redondas, bultos, huecos. Lo que se pica fuera del proyecto no cuenta.
+- El sidebar con la tabla solo le aparece a quien está dentro de la forma, y se va al salir.
+- La tabla ordena por bloques picados, colocados o la suma. Los dos se cuentan siempre, así que
+  una excavación puede pasar a obra después.
+- Barras de progreso: cuánto falta en total, por capa o hasta una Y objetivo.
+- Solo server-side. Los jugadores no instalan nada. No toca los teams ni sus colores.
 
 ## Instalación
 
-1. Server Fabric con [Fabric API](https://modrinth.com/mod/fabric-api), en cualquier Minecraft de 1.21 a 26.3.
-2. Suelta en `mods/` el jar de **tu** versión de Minecraft (la tabla de abajo dice cuál).
-3. Reinicia. Listo: no hay config que editar.
+1. Un server Fabric con [Fabric API](https://modrinth.com/mod/fabric-api), Minecraft 1.21 a 26.3.
+2. Pon el jar de tu versión de Minecraft en `mods/` (ver [Qué jar](#qué-jar)). Deja uno solo.
+3. Reinicia. No hay archivo de configuración.
 
-### Qué jar
+Minecraft 26.x pide Java 25 y, para 26.3, Fabric Loader 0.19.5 o más nuevo.
 
-Cada versión tiene su propio jar, compilado contra esa versión. El nombre siempre termina en la versión de Minecraft para la que es.
+## Uso
 
-| Minecraft | Jar | Java |
-| --- | --- | --- |
-| 1.21, 1.21.1 | `shapeboard-x.y.z+1.21.jar` | 21 |
-| 1.21.2 | `shapeboard-x.y.z+1.21.2.jar` | 21 |
-| 1.21.3 | `shapeboard-x.y.z+1.21.3.jar` | 21 |
-| 1.21.4 | `shapeboard-x.y.z+1.21.4.jar` | 21 |
-| 1.21.5 | `shapeboard-x.y.z+1.21.5.jar` | 21 |
-| 1.21.6 | `shapeboard-x.y.z+1.21.6.jar` | 21 |
-| 1.21.7 | `shapeboard-x.y.z+1.21.7.jar` | 21 |
-| 1.21.8 | `shapeboard-x.y.z+1.21.8.jar` | 21 |
-| 1.21.9 | `shapeboard-x.y.z+1.21.9.jar` | 21 |
-| 1.21.10 | `shapeboard-x.y.z+1.21.10.jar` | 21 |
-| 1.21.11 | `shapeboard-x.y.z+1.21.11.jar` | 21 |
-| 26.1, 26.1.1, 26.1.2 | `shapeboard-x.y.z+26.1.2.jar` | 25 |
-| 26.2 | `shapeboard-x.y.z+26.2.jar` | 25 |
-| 26.3 | `shapeboard-x.y.z+26.3.jar` | 25 |
-
-Minecraft 26.1 en adelante pide Java 25: es requisito del juego, no del mod. El jar de una versión se niega a cargar en otra en vez de funcionar a medias.
-
-Minecraft 26.3 requiere Fabric Loader 0.19.5 o posterior y Fabric API para 26.3.
-
-### Actualizar un mundo existente
-
-Apaga el servidor correctamente y haz una copia del mundo. Reemplaza el jar viejo de ShapeBoard por el de la versión de Minecraft de destino, actualiza Fabric Loader y Fabric API si hace falta y vuelve a iniciar el servidor. Deja solo un jar de ShapeBoard en `mods/`.
-
-Las shapes existentes y sus totales se conservan al mantener el mismo mundo. Las definiciones, escaneos, baselines y preferencias de jugadores están en `world/shapeboard/`; los conteos individuales de bloques rotos y colocados están en los datos del scoreboard vanilla del mundo. Conserva ambos al copiar un mundo. No hace falta recrear las shapes ni volver a escanearlas para seguir contando. Si cambiaste `level-name`, usa esa carpeta de mundo en lugar de `world/`.
-
-## Inicio rápido
-
-Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de su server:
-
-1. **Dibuja el contorno.** Vuela a una Y por encima de la obra (por ejemplo y150) y dibuja una línea continua de un bloque marcador (por ejemplo black concrete) siguiendo la forma del proyecto, hasta que cierre sobre sí misma. Vale cualquier forma: círculos, manchas, agujeros de dona, esquinas cortadas. Los huecos de hasta 6 bloques se puentean solos; los más grandes hacen fallar el escaneo y te dice las coordenadas exactas de los extremos abiertos para que vayas a parcharlos.
-
-2. **Crea la shape.** Párate a menos de 64 bloques de la línea (o pasa coordenadas explícitas desde la consola) y corre:
+1. Dibuja una línea cerrada de un bloque marcador (por ejemplo black concrete) a una Y por encima
+   de la obra, digamos y150. Los huecos de hasta 6 bloques se puentean solos; uno más grande hace
+   fallar el escaneo y te dice las coordenadas de las puntas abiertas.
+2. A menos de 64 bloques de la línea, corre:
 
    ```
    /shapeboard create bigculo minecraft:black_concrete 150
    ```
-
-   ShapeBoard camina toda la línea, cierra la forma y reporta el área:
 
    ```
    [ShapeBoard] Shape 'bigculo' created in 45 ms: 797,680 columns inside,
    outline of 4,350 blocks. Objectives: bigculo_break / bigculo_place.
    ```
 
-   **¿Solo quieres un rectángulo?** Sáltate el dibujo por completo: dale dos esquinas opuestas y la Y techo:
-
-   ```
-   /shapeboard createbox spawnzone 30640 4768 31631 6079 150
-   ```
-
-3. **Ponle un nombre bonito.** Es lo que los jugadores ven en el sidebar:
-
-   ```
-   /shapeboard rename bigculo Big Culo
-   ```
-
-4. **Elige por qué ordena la tabla.** Este es el paso que se salta todo el mundo: el sidebar ordena por **bloques picados** salvo que digas otra cosa. Las roturas y las colocaciones siempre se cuentan, pero solo una de las dos manda en la tabla.
+   Para un rectángulo, sáltate el dibujo: `/shapeboard createbox spawnzone 30640 4768 31631 6079 150`
+   (dos esquinas y la Y techo).
+3. Ponle el nombre del sidebar: `/shapeboard rename bigculo Big Culo`
+4. Elige por qué ordena. Por defecto es por bloques picados, así que cámbialo para una obra:
 
    ```
    /shapeboard metric bigculo break    # picar (por defecto)
@@ -94,22 +52,14 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
    /shapeboard metric bigculo both     # la suma
    ```
 
-   ¿Estás construyendo en vez de picando? Pon la línea de `place` o la tabla se va a quedar a cero mientras todos trabajan.
+Desde ahí, todo lo que se pica o coloca dentro de la forma y por debajo de la Y marcadora cuenta en
+los objetivos vanilla `bigculo_break` y `bigculo_place`. Quien entra recibe un mensaje corto (una
+vez cada 15 minutos por zona) y un sidebar top 15 en vivo; si no está en el top 15, su propia línea
+sale en el último hueco. `/shapeboard hide` esconde el sidebar y `/shapeboard quiet` calla los mensajes.
 
-   ¿Un sitio que primero se cava y luego se construye? Deja `metric` en `break` durante la fase de picado y pásalo a `place` el día que empiece la construcción. Los dos contadores han estado corriendo desde el principio, así que no se pierde nada, y cualquiera puede mirar el otro cuando quiera con `/shapeboard view` (ver [Dos tablas, una zona](#dos-tablas-una-zona)).
+## Detalles
 
-5. **Ya está.** Desde ese momento, todo lo que se pique o coloque dentro de la forma y por debajo de la línea marcadora cuenta en los objetivos vanilla de scoreboard `bigculo_break` y `bigculo_place`. A quien entre le sale:
-
-   ```
-   [ShapeBoard] You entered Big Culo. Blocks you mine or place here count toward the leaderboard.
-   [ShapeBoard] Run /shapeboard hide to hide the sidebar, /shapeboard quiet to mute these messages.
-   ```
-
-   con un sidebar top 15 en vivo. Si no están en el top 15 pero tienen score, su propia línea se muestra en el último hueco para que siempre sepan por dónde van.
-
-   Esas dos líneas salen una vez, no cada vez que cruzas el borde: la misma zona se calla durante 15 minutos después, y `/shapeboard quiet` las silencia para siempre.
-
-## Comandos
+### Todos los comandos
 
 | Comando | Quién | Qué hace |
 |---|---|---|
@@ -137,7 +87,7 @@ Digamos que TVTvirus es admin y quiere trackear la excavación del perímetro de
 | `/shapeboard baseline <id> <bloques>\|fromscan` | OP | Cuántos bloques había antes de empezar a picar. `fromscan` congela el último escaneo, `0` = usar el volumen bruto |
 | `/shapeboard untracked <id> <nombre>` | OP | Guarda bajo un nombre falso los picados que no se le acreditaron a nadie (lo picado antes de crear la shape, explosiones, world edits); se resincroniza tras cada escaneo. `off` lo quita |
 
-## Dos tablas, una zona
+### Dos tablas, una zona
 
 Una zona que primero se excava y luego se construye necesita dos tablas en el
 mismo sitio. Ya las tiene: **las roturas y las colocaciones siempre se cuentan en
@@ -167,7 +117,7 @@ El título del sidebar pasa a ser **Virusia Dig**, **Virusia Build** o **Virusia
 Both**, según lo que esté rankeando quien lo mira. También vale una palabra fija
 (`/shapeboard suffix virusia Build`), y `/shapeboard prefix` pone una delante.
 
-## Progreso de excavación
+### Progreso de excavación
 
 Los contadores de picado responden "quién picó más", pero no "cuánto falta":
 la TNT y las ediciones de mundo no se le acreditan a nadie. `/shapeboard scan`
@@ -180,7 +130,7 @@ la forma.
 ```
 
 ```
-— Big Culo progress —
+ Big Culo progress 
 ████████░░░░░░░░░░░░ 41.74%
 Progress: 280,374 / 671,744 blocks cleared, 391,370 remaining
 Left to dig: deepslate 202,334, stone 115,216, tuff 15,297, diorite 12,677
@@ -227,7 +177,7 @@ pregunta que se hace de verdad ("¿cuánto falta para dejarlo limpio hasta y-20?
 ```
 
 ```
-— Big Culo · down to y-20 —
+ Big Culo, down to y-20 
 ███████░░░░░░░░░░░░░ 38.60%
 Down to y-20: 210,455 / 545,180 blocks cleared, 334,725 remaining
 Layers: 43 of 96 cleared from y99 down to y-20, highest one left is y41.
@@ -242,14 +192,14 @@ antes, así que los chunks recién picados siempre entran. Corrélo desde un cro
 (cada hora o cada día) y `/shapeboard progress` responde al instante desde el
 snapshot guardado.
 
-## Cómo funciona
+### Cómo funciona
 
 - **Escaneo:** partiendo de un bloque semilla, ShapeBoard camina la línea conectada de bloques marcadores a esa Y exacta (cargando solo los chunks por los que pasa la línea), puentea huecos de hasta 6 bloques, y corre un flood fill desde afuera. Todo lo que el flood no alcanza está dentro. Una línea diagonal bloquea el fill correctamente, así que los contornos con esquinas a 45 grados van bien.
 - **Máscara:** el resultado se guarda como intervalos de z por columna de x en `world/shapeboard/shapes.json`. Un lookup son un par de comparaciones de enteros, así que el tracking no cuesta nada ni con docenas de jugadores picando.
 - **Conteo:** los bloques rotos se cuentan con el evento de Fabric, los colocados con un mixin chiquito. Solo cuentan las columnas dentro de la forma y por debajo de la Y del marcador. Los scores van a objetivos vanilla de scoreboard, así que todo lo demás de tu server (comandos, datapacks, otros mods) puede leerlos.
 - **Sidebar:** cada espectador recibe un objetivo falso solo-cliente por paquetes dirigidos (`shapeboard_view`), refrescado solo cuando los números cambian. Al salir de la zona se elimina y se restaura el objetivo de sidebar que el server tuviera puesto. Los nombres en el board conservan sus colores de team.
 
-## Preguntas frecuentes
+### Preguntas frecuentes
 
 **¿Necesita algo en el cliente?** No. Los jugadores vanilla ven todo.
 
@@ -266,6 +216,37 @@ snapshot guardado.
 **¿Puedo trackear una zona donde ya se picó antes?** Los objetivos arrancan en cero al crear la shape. Si tienes números previos en otro objetivo, cópialos con `/scoreboard players operation`.
 
 **¿El escaneo lagea el server?** Solo carga los chunks que toca el contorno, una vez, al crear. Un contorno de 4,000 bloques tarda bastante menos de un segundo en un mundo cargado.
+
+### Qué jar
+
+Cada versión tiene su propio jar, compilado contra esa versión. El nombre siempre termina en la versión de Minecraft para la que es.
+
+| Minecraft | Jar | Java |
+| --- | --- | --- |
+| 1.21, 1.21.1 | `shapeboard-x.y.z+1.21.jar` | 21 |
+| 1.21.2 | `shapeboard-x.y.z+1.21.2.jar` | 21 |
+| 1.21.3 | `shapeboard-x.y.z+1.21.3.jar` | 21 |
+| 1.21.4 | `shapeboard-x.y.z+1.21.4.jar` | 21 |
+| 1.21.5 | `shapeboard-x.y.z+1.21.5.jar` | 21 |
+| 1.21.6 | `shapeboard-x.y.z+1.21.6.jar` | 21 |
+| 1.21.7 | `shapeboard-x.y.z+1.21.7.jar` | 21 |
+| 1.21.8 | `shapeboard-x.y.z+1.21.8.jar` | 21 |
+| 1.21.9 | `shapeboard-x.y.z+1.21.9.jar` | 21 |
+| 1.21.10 | `shapeboard-x.y.z+1.21.10.jar` | 21 |
+| 1.21.11 | `shapeboard-x.y.z+1.21.11.jar` | 21 |
+| 26.1, 26.1.1, 26.1.2 | `shapeboard-x.y.z+26.1.2.jar` | 25 |
+| 26.2 | `shapeboard-x.y.z+26.2.jar` | 25 |
+| 26.3 | `shapeboard-x.y.z+26.3.jar` | 25 |
+
+Minecraft 26.1 en adelante pide Java 25: es requisito del juego, no del mod. El jar de una versión se niega a cargar en otra en vez de funcionar a medias.
+
+Minecraft 26.3 requiere Fabric Loader 0.19.5 o posterior y Fabric API para 26.3.
+
+### Actualizar un mundo existente
+
+Apaga el servidor correctamente y haz una copia del mundo. Reemplaza el jar viejo de ShapeBoard por el de la versión de Minecraft de destino, actualiza Fabric Loader y Fabric API si hace falta y vuelve a iniciar el servidor. Deja solo un jar de ShapeBoard en `mods/`.
+
+Las shapes existentes y sus totales se conservan al mantener el mismo mundo. Las definiciones, escaneos, baselines y preferencias de jugadores están en `world/shapeboard/`; los conteos individuales de bloques rotos y colocados están en los datos del scoreboard vanilla del mundo. Conserva ambos al copiar un mundo. No hace falta recrear las shapes ni volver a escanearlas para seguir contando. Si cambiaste `level-name`, usa esa carpeta de mundo en lugar de `world/`.
 
 ## Compilar desde el código
 

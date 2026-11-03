@@ -2,91 +2,47 @@
 
 *Read this in [Español](README_es.md).*
 
-**Scoreboards for areas of ANY shape, not just boxes.** Outline your dig zone, perimeter or build area with a line of marker blocks in the sky, run one command, and ShapeBoard tracks every block broken and placed inside that exact shape. When someone walks in, a leaderboard sidebar appears just for them. When they walk out, it goes away.
-
-100% server-side. Players do not install anything.
-
-## See it in action
+Scoreboards for areas of any shape. Outline a dig or build zone with a line of blocks in the sky,
+run one command, and every block broken or placed inside that exact shape is counted.
 
 ![Flying out of the area removes the sidebar, flying back in restores it, live scores included](docs/demo.gif)
 
 Full quality video with sound: [shapeboard-demo.mp4](https://github.com/CodeW4VE/ShapeBoard/releases/download/v1.0.1/shapeboard-demo.mp4)
 
-## Why
+- Any outline works: round corners, bulges, holes. Mining outside the real project does not count.
+- A leaderboard sidebar appears only for players standing inside the shape, and goes away when they leave.
+- Rank by blocks broken, placed, or both. Both are always counted, so a dig can turn into a build later.
+- Progress bars for digs: how much is left in total, per layer, or down to a target Y.
+- Server-side only. Players install nothing. Teams and team colors are left alone.
 
-Tools like buildevents can only track rectangular boxes. Real projects are not rectangles: perimeters have round corners, rivers you want to skip, weird bulges. If you track a box around a round perimeter, people mining outside the actual project still climb your leaderboard. ShapeBoard follows the exact outline you drew, so the count is fair.
+## Installation
 
-The sidebar is also per-player for real. It is sent with targeted scoreboard packets, so only the people standing inside the shape see it. No teams are touched, no team colors are changed, and two players who happen to share a team color do not leak the board to each other. Whatever your server uses teams and colors for stays intact.
+1. A Fabric server with [Fabric API](https://modrinth.com/mod/fabric-api), Minecraft 1.21 to 26.3.
+2. Put the jar for your Minecraft version in `mods/` (see [Which jar](#which-jar)). Keep only one.
+3. Restart. There is no config file.
 
-## Install
+Minecraft 26.x needs Java 25 and, for 26.3, Fabric Loader 0.19.5 or newer.
 
-1. Fabric server with [Fabric API](https://modrinth.com/mod/fabric-api), on any Minecraft from 1.21 to 26.3.
-2. Drop the jar for **your** Minecraft version into `mods/` (the table below says which one).
-3. Restart. Done: there is no config file to edit.
+## Usage
 
-### Which jar
-
-Every version gets its own jar, compiled against that version. The name always ends in the Minecraft version it is for.
-
-| Minecraft | Jar | Java |
-| --- | --- | --- |
-| 1.21, 1.21.1 | `shapeboard-x.y.z+1.21.jar` | 21 |
-| 1.21.2 | `shapeboard-x.y.z+1.21.2.jar` | 21 |
-| 1.21.3 | `shapeboard-x.y.z+1.21.3.jar` | 21 |
-| 1.21.4 | `shapeboard-x.y.z+1.21.4.jar` | 21 |
-| 1.21.5 | `shapeboard-x.y.z+1.21.5.jar` | 21 |
-| 1.21.6 | `shapeboard-x.y.z+1.21.6.jar` | 21 |
-| 1.21.7 | `shapeboard-x.y.z+1.21.7.jar` | 21 |
-| 1.21.8 | `shapeboard-x.y.z+1.21.8.jar` | 21 |
-| 1.21.9 | `shapeboard-x.y.z+1.21.9.jar` | 21 |
-| 1.21.10 | `shapeboard-x.y.z+1.21.10.jar` | 21 |
-| 1.21.11 | `shapeboard-x.y.z+1.21.11.jar` | 21 |
-| 26.1, 26.1.1, 26.1.2 | `shapeboard-x.y.z+26.1.2.jar` | 25 |
-| 26.2 | `shapeboard-x.y.z+26.2.jar` | 25 |
-| 26.3 | `shapeboard-x.y.z+26.3.jar` | 25 |
-
-Minecraft 26.1 and up need Java 25: that is the game's requirement, not the mod's. The jar for a version will refuse to load on a different one rather than half work.
-
-Minecraft 26.3 requires Fabric Loader 0.19.5 or newer and Fabric API for 26.3.
-
-### Updating an existing world
-
-Stop the server cleanly and back up the world. Replace the old ShapeBoard jar with the jar for your target Minecraft version, update Fabric Loader and Fabric API as needed, then start the server again. Keep only one ShapeBoard jar in `mods/`.
-
-Existing shapes and totals are retained when you keep the same world. Shape definitions, scan snapshots, baselines and player preferences live in `world/shapeboard/`; individual break and placement scores live in the world's vanilla scoreboard data. Keep both when copying a world. Shapes do not need to be recreated or scanned again to resume counting. If `level-name` is customized, use that world directory instead of `world/`.
-
-## Quick start
-
-Say TVTvirus is admin and wants to track his server's perimeter dig:
-
-1. **Draw the outline.** Fly to a Y above the build (for example y150) and draw one continuous line of a marker block (for example black concrete) tracing the shape of the project, until it closes on itself. Any shape works: circles, blobs, donut holes, cut corners. Small gaps up to 6 blocks are bridged automatically; bigger gaps make the scan fail and it tells you the exact coordinates of the open ends so you can go patch them.
-
-2. **Create the shape.** Stand anywhere within 64 blocks of the line (or pass explicit coordinates from the console) and run:
+1. Draw one closed line of a marker block (for example black concrete) at a Y above the build,
+   say y150. Gaps up to 6 blocks are bridged; a bigger gap makes the scan fail and prints the
+   coordinates of the open ends.
+2. Within 64 blocks of the line, run:
 
    ```
    /shapeboard create bigculo minecraft:black_concrete 150
    ```
-
-   ShapeBoard walks the whole line, closes the shape, and reports the area:
 
    ```
    [ShapeBoard] Shape 'bigculo' created in 45 ms: 797,680 columns inside,
    outline of 4,350 blocks. Objectives: bigculo_break / bigculo_place.
    ```
 
-   **Just want a rectangle?** Skip the drawing entirely: give it two opposite corners and the ceiling Y instead:
-
-   ```
-   /shapeboard createbox spawnzone 30640 4768 31631 6079 150
-   ```
-
-3. **Give it a pretty name.** This is what players see on the sidebar:
-
-   ```
-   /shapeboard rename bigculo Big Culo
-   ```
-
-4. **Pick what the leaderboard ranks by.** This is the step people miss: the sidebar ranks by **blocks broken** unless you say otherwise. Both breaks and placements are always counted, but only one of them drives the board.
+   For a plain rectangle, skip the drawing: `/shapeboard createbox spawnzone 30640 4768 31631 6079 150`
+   (two corners and the ceiling Y).
+3. Name it for the sidebar: `/shapeboard rename bigculo Big Culo`
+4. Choose what it ranks by. The default is blocks broken, so set it for builds:
 
    ```
    /shapeboard metric bigculo break    # digs (default)
@@ -94,22 +50,17 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
    /shapeboard metric bigculo both     # the sum
    ```
 
-   Building a project rather than digging one? Run the `place` line, or the board will sit at zero while everyone works.
+Everything broken or placed inside the shape and below the marker Y now counts into the vanilla
+objectives `bigculo_break` and `bigculo_place`. Players walking in get a short message (once
+every 15 minutes per zone) and a live top 15 sidebar; if they are not in the top 15, their own
+line shows in the last slot. `/shapeboard hide` hides the sidebar, `/shapeboard quiet` mutes the
+messages.
 
-   Digging a place first and building it later? Leave `metric` on `break` for the dig phase, flip it to `place` on the day the building starts. Both counters ran all along, so nothing is lost, and anyone can watch the other one at any time with `/shapeboard view` (see [Two boards, one zone](#two-boards-one-zone)).
+<!-- modrinth:end -->
 
-5. **That is it.** From now on, everything mined or placed inside the shape and below the marker line counts into the vanilla scoreboard objectives `bigculo_break` and `bigculo_place`. Anyone who walks in gets:
+## Details
 
-   ```
-   [ShapeBoard] You entered Big Culo. Blocks you mine or place here count toward the leaderboard.
-   [ShapeBoard] Run /shapeboard hide to hide the sidebar, /shapeboard quiet to mute these messages.
-   ```
-
-   Those two lines are shown once, not on every crossing: the same zone stays quiet for 15 minutes afterwards, and `/shapeboard quiet` mutes them for good.
-
-   with a live top 15 sidebar. If they are not in the top 15 but have a score, their own line is shown in the last slot so they always see where they stand.
-
-## Commands
+### All commands
 
 | Command | Who | What |
 |---|---|---|
@@ -137,7 +88,7 @@ Say TVTvirus is admin and wants to track his server's perimeter dig:
 | `/shapeboard baseline <id> <blocks>\|fromscan` | OP | How many blocks were there before digging started. `fromscan` freezes the last scan, `0` = use the raw volume |
 | `/shapeboard untracked <id> <name>` | OP | Hold the digs nobody was credited for (pre-shape digs, explosions, world edits) under a fake name, resynced after every scan. `off` removes it |
 
-## Two boards, one zone
+### Two boards, one zone
 
 A zone that gets dug out first and built up later needs two leaderboards in the
 same place. It already has them: **breaks and placements are always counted into
@@ -167,7 +118,7 @@ The sidebar title then reads **Virusia Dig**, **Virusia Build** or **Virusia
 Both**, following whatever that viewer is ranking by. A fixed word works too
 (`/shapeboard suffix virusia Build`), and `/shapeboard prefix` puts one in front.
 
-## Dig progress
+### Dig progress
 
 Break counters answer "who dug the most". They cannot answer "how much is left",
 because TNT and world edits are not credited to anyone. `/shapeboard scan` answers
@@ -179,7 +130,7 @@ that directly: it counts the blocks **still standing** inside the shape.
 ```
 
 ```
-— Big Culo progress —
+Big Culo progress
 ████████░░░░░░░░░░░░ 41.74%
 Progress: 280,374 / 671,744 blocks cleared, 391,370 remaining
 Left to dig: deepslate 202,334, stone 115,216, tuff 15,297, diorite 12,677
@@ -223,7 +174,7 @@ actually ask ("how much before we are clear to y-20?"):
 ```
 
 ```
-— Big Culo · down to y-20 —
+Big Culo, down to y-20
 ███████░░░░░░░░░░░░░ 38.60%
 Down to y-20: 210,455 / 545,180 blocks cleared, 334,725 remaining
 Layers: 43 of 96 cleared from y99 down to y-20, highest one left is y41.
@@ -237,14 +188,14 @@ storage, so the server keeps ticking. A 4,096 column zone takes ~50 ms; a
 freshly dug chunks are always included. Run it from a cron job (hourly or daily)
 and `/shapeboard progress` answers instantly from the stored snapshot.
 
-## How it works
+### How it works
 
 - **Scan:** starting from a seed block, ShapeBoard walks the connected line of marker blocks at that exact Y (loading only the chunks the line passes through), auto-bridges gaps up to 6 blocks, then runs a flood fill from outside. Everything the flood cannot reach is inside. A diagonal line blocks the fill correctly, so outlines with 45 degree corners are fine.
 - **Mask:** the result is stored as z-intervals per x column in `world/shapeboard/shapes.json`. A lookup is a couple of integer comparisons, so tracking costs nothing even with dozens of players digging.
 - **Counting:** block breaks are counted through Fabric's break event, block placements through a tiny mixin. Only columns inside the shape and below the marker Y count. Scores go to plain vanilla scoreboard objectives, so everything else on your server (commands, datapacks, other mods) can read them.
 - **Sidebar:** each viewer gets a client-only fake objective through targeted packets (`shapeboard_view`), refreshed only when the numbers change. Leaving the area removes it and restores whatever sidebar objective the server had displayed. Player names on the board keep their team colors.
 
-## FAQ
+### FAQ
 
 **Does it need anything on the client?** No. Vanilla players see everything.
 
@@ -261,6 +212,37 @@ and `/shapeboard progress` answers instantly from the stored snapshot.
 **Can I track an area that already had digging?** Objectives start at zero when the shape is created. If you have previous numbers in another objective, copy them in with `/scoreboard players operation`.
 
 **Does the scan lag the server?** It loads only the chunks the outline itself touches, once, at create time. A 4,000 block outline takes well under a second on a loaded world.
+
+### Which jar
+
+Every version gets its own jar, compiled against that version. The name always ends in the Minecraft version it is for.
+
+| Minecraft | Jar | Java |
+| --- | --- | --- |
+| 1.21, 1.21.1 | `shapeboard-x.y.z+1.21.jar` | 21 |
+| 1.21.2 | `shapeboard-x.y.z+1.21.2.jar` | 21 |
+| 1.21.3 | `shapeboard-x.y.z+1.21.3.jar` | 21 |
+| 1.21.4 | `shapeboard-x.y.z+1.21.4.jar` | 21 |
+| 1.21.5 | `shapeboard-x.y.z+1.21.5.jar` | 21 |
+| 1.21.6 | `shapeboard-x.y.z+1.21.6.jar` | 21 |
+| 1.21.7 | `shapeboard-x.y.z+1.21.7.jar` | 21 |
+| 1.21.8 | `shapeboard-x.y.z+1.21.8.jar` | 21 |
+| 1.21.9 | `shapeboard-x.y.z+1.21.9.jar` | 21 |
+| 1.21.10 | `shapeboard-x.y.z+1.21.10.jar` | 21 |
+| 1.21.11 | `shapeboard-x.y.z+1.21.11.jar` | 21 |
+| 26.1, 26.1.1, 26.1.2 | `shapeboard-x.y.z+26.1.2.jar` | 25 |
+| 26.2 | `shapeboard-x.y.z+26.2.jar` | 25 |
+| 26.3 | `shapeboard-x.y.z+26.3.jar` | 25 |
+
+Minecraft 26.1 and up need Java 25: that is the game's requirement, not the mod's. The jar for a version will refuse to load on a different one rather than half work.
+
+Minecraft 26.3 requires Fabric Loader 0.19.5 or newer and Fabric API for 26.3.
+
+### Updating an existing world
+
+Stop the server cleanly and back up the world. Replace the old ShapeBoard jar with the jar for your target Minecraft version, update Fabric Loader and Fabric API as needed, then start the server again. Keep only one ShapeBoard jar in `mods/`.
+
+Existing shapes and totals are retained when you keep the same world. Shape definitions, scan snapshots, baselines and player preferences live in `world/shapeboard/`; individual break and placement scores live in the world's vanilla scoreboard data. Keep both when copying a world. Shapes do not need to be recreated or scanned again to resume counting. If `level-name` is customized, use that world directory instead of `world/`.
 
 ## Building from source
 
